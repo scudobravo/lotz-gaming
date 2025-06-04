@@ -1,0 +1,38 @@
+{
+  "_runtime-core.esm-bundler-B2S7gwzc.js": {
+    "file": "assets/runtime-core.esm-bundler-B2S7gwzc.js",
+    "name": "runtime-core.esm-bundler"
+  },
+  "resources/js/Pages/Auth/Login.vue": {
+    "file": "assets/Login-CNisN7uv.js",
+    "name": "Login",
+    "src": "resources/js/Pages/Auth/Login.vue",
+    "isEntry": true,
+    "imports": [
+      "_runtime-core.esm-bundler-B2S7gwzc.js"
+    ]
+  },
+  "resources/js/Pages/Welcome.vue": {
+    "file": "assets/Welcome-CK3v3ZaC.js",
+    "name": "Welcome",
+    "src": "resources/js/Pages/Welcome.vue",
+    "isEntry": true,
+    "imports": [
+      "_runtime-core.esm-bundler-B2S7gwzc.js"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-VwNYiJn5.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "imports": [
+      "resources/js/Pages/Auth/Login.vue",
+      "_runtime-core.esm-bundler-B2S7gwzc.js",
+      "resources/js/Pages/Welcome.vue"
+    ],
+    "css": [
+      "assets/app-Dpi1jpmI.css"
+    ]
+  }
+}
