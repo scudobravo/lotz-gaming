@@ -1,0 +1,77 @@
+<template>
+  <div class="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+      <img class="mx-auto h-12 w-auto" src="/images/logo.png" alt="Logo" />
+      <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        Disclaimer - {{ project?.name }}
+      </h2>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div class="space-y-6">
+          <div class="text-sm text-gray-600">
+            <p class="mb-4">
+              Benvenuto in {{ project?.name }}! Prima di iniziare, ti chiediamo di leggere attentamente questo disclaimer.
+            </p>
+            <p class="mb-4">
+              Utilizzando questo servizio, accetti di:
+            </p>
+            <ul class="list-disc pl-5 mb-4">
+              <li>Rispettare le regole del gioco</li>
+              <li>Non utilizzare il servizio per scopi illegali</li>
+              <li>Non condividere contenuti inappropriati</li>
+              <li>Rispettare la privacy degli altri partecipanti</li>
+            </ul>
+            <p class="mb-4">
+              I tuoi dati personali verranno trattati secondo la nostra <a href="https://lotz.app/admin/public/privacy-policy" target="_blank" class="text-indigo-600 hover:text-indigo-500">Privacy Policy</a>.
+            </p>
+          </div>
+
+          <div>
+            <button
+              @click="acceptAndContinue"
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Accetta e Continua
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useForm } from '@inertiajs/vue3';
+import axios from 'axios';
+
+const props = defineProps({
+  project_id: {
+    type: String,
+    required: true
+  }
+});
+
+const project = ref(null);
+
+onMounted(async () => {
+  try {
+    const response = await axios.get(`/api/projects/${props.project_id}`);
+    project.value = response.data;
+  } catch (error) {
+    console.error('Errore nel recupero del progetto:', error);
+  }
+});
+
+const acceptAndContinue = () => {
+  // Costruisci l'URL di WhatsApp con il messaggio predefinito
+  const whatsappNumber = '14155238886'; // Numero di Twilio
+  const message = `join ${project.value?.slug || ''}`;
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+  
+  // Apri WhatsApp
+  window.location.href = whatsappUrl;
+};
+</script> 

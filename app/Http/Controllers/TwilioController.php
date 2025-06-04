@@ -29,16 +29,40 @@ class TwilioController extends Controller
         $messageSid = $request->input('MessageSid');
 
         try {
-            // Cerca il progresso dell'utente o creane uno nuovo
-            $userProgress = UserProgress::firstOrCreate(
-                ['phone_number' => $from],
-                [
-                    'project_id' => Project::first()->id, // Per ora prendiamo il primo progetto
-                    'current_scene_id' => Project::first()->initial_scene_id,
+            // Estrai il progetto dal messaggio se è un messaggio di join
+            $project = null;
+            if (preg_match('/^join\s+(\w+)$/i', $body, $matches)) {
+                $projectSlug = $matches[1];
+                $project = Project::where('slug', $projectSlug)->first();
+                
+                if (!$project) {
+                    return $this->sendErrorResponse('Progetto non trovato. Verifica il codice e riprova.');
+                }
+            }
+
+            // Cerca il progresso dell'utente
+            $userProgress = UserProgress::where('phone_number', $from)->first();
+
+            // Se non esiste un progresso e non è un messaggio di join, invia errore
+            if (!$userProgress && !$project) {
+                return $this->sendErrorResponse('Per iniziare, invia "join [codice]" dove [codice] è il codice del gioco.');
+            }
+
+            // Se esiste un progresso ma è un nuovo join, verifica che sia lo stesso progetto
+            if ($userProgress && $project && $userProgress->project_id !== $project->id) {
+                return $this->sendErrorResponse('Hai già un gioco in corso. Completa quello prima di iniziarne un altro.');
+            }
+
+            // Se non esiste un progresso e abbiamo un progetto, creane uno nuovo
+            if (!$userProgress && $project) {
+                $userProgress = UserProgress::create([
+                    'phone_number' => $from,
+                    'project_id' => $project->id,
+                    'current_scene_id' => $project->initial_scene_id,
                     'attempts_remaining' => 3,
                     'last_interaction_at' => now()
-                ]
-            );
+                ]);
+            }
 
             // Aggiorna l'ultima interazione
             $userProgress->update(['last_interaction_at' => now()]);
@@ -47,6 +71,11 @@ class TwilioController extends Controller
             $currentScene = Scene::find($userProgress->current_scene_id);
             if (!$currentScene) {
                 return $this->sendErrorResponse('Scena non trovata. Riprova più tardi.');
+            }
+
+            // Verifica che la scena appartenga al progetto corretto
+            if ($currentScene->project_id !== $userProgress->project_id) {
+                return $this->sendErrorResponse('Errore di configurazione del gioco. Contatta l\'amministratore.');
             }
 
             // Gestisci la scena in base al suo tipo
