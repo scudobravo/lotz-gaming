@@ -5,9 +5,13 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SceneController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\CharacterController;
+use App\Http\Controllers\TwilioController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+// Twilio Webhook
+Route::post('/api/twilio/webhook', [TwilioController::class, 'handleIncomingMessage']);
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
