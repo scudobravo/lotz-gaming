@@ -87,86 +87,39 @@ class TwilioController extends Controller
      */
     public function handleIncomingMessage(Request $request)
     {
-        Log::info('Twilio incoming message received', [
-            'request' => $request->all(),
-            'from' => $request->input('From'),
-            'body' => $request->input('Body'),
-            'message_sid' => $request->input('MessageSid'),
-            'method' => $request->method()
-        ]);
-
-        $from = $request->input('From');
-        $body = $request->input('Body', '');
-        $messageSid = $request->input('MessageSid');
-
         try {
-            // Cerca il progresso dell'utente
-            $userProgress = UserProgress::where('phone_number', $from)->first();
-            Log::info('User progress trovato', [
-                'user_progress' => $userProgress ? $userProgress->toArray() : null
+            Log::info('Twilio incoming message received', [
+                'request' => $request->all(),
+                'from' => $request->input('From'),
+                'body' => $request->input('Body'),
+                'message_sid' => $request->input('MessageSid')
             ]);
 
-            // Se non esiste un progresso, creane uno nuovo con il progetto Subiaco Bibliotech
+            // Estrai il numero di telefono dalla richiesta Twilio
+            $phoneNumber = $request->input('From');
+            $projectId = $request->input('project_id', 1); // Default a 1 se non specificato
+
+            if (!$phoneNumber) {
+                Log::error('Numero di telefono mancante nella richiesta Twilio');
+                return $this->sendErrorResponse('Numero di telefono mancante');
+            }
+
+            // Cerca o crea il progresso dell'utente
+            $userProgress = UserProgress::where('phone_number', $phoneNumber)
+                ->where('project_id', $projectId)
+                ->first();
+
+            Log::info('User progress trovato', ['user_progress' => $userProgress]);
+
             if (!$userProgress) {
-                $project = Project::where('slug', 'subiaco-bibliotech')->first();
-                if (!$project) {
-                    return $this->sendErrorResponse('Progetto non trovato. Contatta l\'amministratore.');
-                }
-
-                Log::info('Progetto trovato', [
-                    'project' => $project->toArray(),
-                    'initial_scene_id' => $project->initial_scene_id
-                ]);
-
-                // Ottieni la scena iniziale
-                $initialScene = Scene::find($project->initial_scene_id);
-                if (!$initialScene) {
-                    return $this->sendErrorResponse('Scena iniziale non trovata. Contatta l\'amministratore.');
-                }
-
-                Log::info('Scena iniziale trovata', [
-                    'initial_scene' => $initialScene->toArray()
-                ]);
-
+                // Crea un nuovo progresso utente
                 $userProgress = UserProgress::create([
-                    'phone_number' => $from,
-                    'project_id' => $project->id,
-                    'current_scene_id' => $initialScene->id,
+                    'phone_number' => $phoneNumber,
+                    'project_id' => $projectId,
+                    'current_scene_id' => 1, // Inizia dalla prima scena
                     'attempts_remaining' => 3,
                     'last_interaction_at' => now()
                 ]);
-                Log::info('Nuovo user progress creato', [
-                    'user_progress' => $userProgress->toArray()
-                ]);
-
-                // Invia la risposta con media e formattazione HTML
-                $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-                
-                // Aggiungi media se presente
-                if ($initialScene->media_gif_url) {
-                    $media = $response->addChild('Media');
-                    $media[0] = config('app.url') . $initialScene->media_gif_url;
-                }
-                if ($initialScene->media_audio_url) {
-                    $media = $response->addChild('Media');
-                    $media[0] = config('app.url') . $initialScene->media_audio_url;
-                }
-
-                // Aggiungi il messaggio formattato in HTML
-                $message = $response->addChild('Message');
-                $message->addAttribute('format', 'html');
-                $body = $message->addChild('Body');
-                $body[0] = $this->formatMessageForTwilio($initialScene->entry_message);
-
-                Log::info('Risposta iniziale inviata', [
-                    'response' => $response->asXML(),
-                    'media_gif_url' => $initialScene->media_gif_url,
-                    'media_audio_url' => $initialScene->media_audio_url,
-                    'message' => $this->formatMessageForTwilio($initialScene->entry_message)
-                ]);
-
-                return response($response->asXML(), 200)
-                    ->header('Content-Type', 'text/xml');
             }
 
             // Se esiste già un progresso, gestisci la scena corrente
@@ -194,19 +147,19 @@ class TwilioController extends Controller
             switch ($currentScene->type) {
                 case 'intro':
                     Log::info('Gestione scena intro');
-                    $this->handleIntroScene($userProgress, $currentScene, $body, $response);
+                    $this->handleIntroScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 case 'investigation':
                     Log::info('Gestione scena investigation');
-                    $this->handleInvestigationScene($userProgress, $currentScene, $body, $response);
+                    $this->handleInvestigationScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 case 'puzzle':
                     Log::info('Gestione scena puzzle');
-                    $this->handlePuzzleScene($userProgress, $currentScene, $body, $response);
+                    $this->handlePuzzleScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 case 'final':
                     Log::info('Gestione scena final');
-                    $this->handleFinalScene($userProgress, $currentScene, $body, $response);
+                    $this->handleFinalScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 default:
                     Log::error('Tipo di scena non valido', [
