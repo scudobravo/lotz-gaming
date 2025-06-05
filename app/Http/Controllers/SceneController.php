@@ -175,18 +175,21 @@ class SceneController extends Controller
      */
     public function edit(Scene $scene)
     {
-        $projects = Project::all();
-        $characters = Character::all();
+        $projects = Project::all(['id', 'name']);
+        $characters = Character::all(['id', 'name']);
         $availableScenes = Scene::where('project_id', $scene->project_id)
             ->where('id', '!=', $scene->id)
+            ->select(['id', 'title', 'type'])
             ->get();
+        
+        // Carica le relazioni necessarie
+        $scene->load(['choices' => function($query) {
+            $query->select(['id', 'scene_id', 'label', 'target_scene_id', 'order']);
+        }]);
         
         Log::info('Dati scena per edit', [
             'scene_id' => $scene->id,
-            'media_gif_url' => $scene->media_gif_url,
-            'media_audio_url' => $scene->media_audio_url,
-            'scene_data' => $scene->toArray(),
-            'available_scenes' => $availableScenes->toArray()
+            'available_scenes_count' => $availableScenes->count()
         ]);
         
         return Inertia::render('Scenes/Edit', [
