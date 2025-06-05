@@ -13,6 +13,22 @@ use Illuminate\Support\Facades\Log;
 class TwilioController extends Controller
 {
     /**
+     * Formatta il messaggio HTML per Twilio
+     */
+    private function formatMessageForTwilio($message)
+    {
+        // Rimuovi gli spazi non necessari
+        $message = preg_replace('/\s+/', ' ', $message);
+        // Sostituisci &nbsp; con spazi normali
+        $message = str_replace('&nbsp;', ' ', $message);
+        // Rimuovi le virgolette non necessarie
+        $message = str_replace('"', '', $message);
+        // Assicurati che il messaggio sia valido HTML
+        $message = html_entity_decode($message, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return $message;
+    }
+
+    /**
      * Invia il messaggio iniziale a un utente
      */
     public function sendInitialMessage(Request $request)
@@ -23,13 +39,13 @@ class TwilioController extends Controller
                 'project_id' => 'required|exists:projects,id'
             ]);
 
-            // Creiamo la risposta XML per Twilio con solo il messaggio di inizio
+            // Creiamo la risposta XML per Twilio con solo il messaggio di benvenuto
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
             $body = $message->addChild('Body');
             $body[0] = 'Invia questo messaggio per iniziare il gioco!';
 
-            Log::info('Risposta Twilio generata per messaggio di inizio', [
+            Log::info('Risposta Twilio generata per messaggio di benvenuto', [
                 'response' => $response->asXML()
             ]);
 
@@ -37,7 +53,7 @@ class TwilioController extends Controller
                 ->header('Content-Type', 'text/xml');
 
         } catch (\Exception $e) {
-            Log::error('Errore nell\'invio del messaggio iniziale', [
+            Log::error('Errore nell\'invio del messaggio di benvenuto', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -110,16 +126,13 @@ class TwilioController extends Controller
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                // Rimuovi gli spazi non necessari e assicurati che il messaggio sia formattato correttamente
-                $messageText = preg_replace('/\s+/', ' ', $project->initialScene->entry_message);
-                $messageText = str_replace('&nbsp;', ' ', $messageText);
-                $body[0] = $messageText;
+                $body[0] = $this->formatMessageForTwilio($project->initialScene->entry_message);
 
                 Log::info('Risposta iniziale inviata', [
                     'response' => $response->asXML(),
                     'media_gif_url' => $project->initialScene->media_gif_url,
                     'media_audio_url' => $project->initialScene->media_audio_url,
-                    'message' => $messageText
+                    'message' => $this->formatMessageForTwilio($project->initialScene->entry_message)
                 ]);
 
                 return response($response->asXML(), 200)
@@ -237,7 +250,7 @@ class TwilioController extends Controller
                     $message = $response->addChild('Message');
                     $message->addAttribute('format', 'html');
                     $body = $message->addChild('Body');
-                    $body[0] = $nextScene->entry_message;
+                    $body[0] = $this->formatMessageForTwilio($nextScene->entry_message);
                     
                     Log::info('Scena successiva impostata', [
                         'next_scene_id' => $nextScene->id,
@@ -265,7 +278,7 @@ class TwilioController extends Controller
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            $body[0] = $scene->entry_message;
+            $body[0] = $this->formatMessageForTwilio($scene->entry_message);
             
             Log::info('Messaggi non corrispondono, ripeto la scena corrente');
         }
@@ -311,7 +324,7 @@ class TwilioController extends Controller
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            $body[0] = $nextScene->entry_message;
+            $body[0] = $this->formatMessageForTwilio($nextScene->entry_message);
         } else {
             Log::info('Scelta non valida, mostro le opzioni disponibili');
             
@@ -331,7 +344,7 @@ class TwilioController extends Controller
             $body = $message->addChild('Body');
             
             // Aggiungi il messaggio principale con la formattazione HTML
-            $messageText = $scene->entry_message;
+            $messageText = $this->formatMessageForTwilio($scene->entry_message);
             
             // Aggiungi le opzioni disponibili
             if ($scene->choices->count() > 0) {
@@ -366,7 +379,7 @@ class TwilioController extends Controller
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            $body[0] = $scene->success_message;
+            $body[0] = $this->formatMessageForTwilio($scene->success_message);
 
             // Passa alla scena successiva se presente
             if ($scene->next_scene_id) {
@@ -389,7 +402,7 @@ class TwilioController extends Controller
                     $message = $response->addChild('Message');
                     $message->addAttribute('format', 'html');
                     $body = $message->addChild('Body');
-                    $body[0] = $nextScene->entry_message;
+                    $body[0] = $this->formatMessageForTwilio($nextScene->entry_message);
                 }
             }
         } else {
@@ -401,7 +414,7 @@ class TwilioController extends Controller
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                $body[0] = $scene->failure_message;
+                $body[0] = $this->formatMessageForTwilio($scene->failure_message);
             } else {
                 // Altrimenti, mostra il messaggio di errore e i tentativi rimanenti
                 $message = $response->addChild('Message');
@@ -431,7 +444,7 @@ class TwilioController extends Controller
         $message = $response->addChild('Message');
         $message->addAttribute('format', 'html');
         $body = $message->addChild('Body');
-        $body[0] = $scene->entry_message;
+        $body[0] = $this->formatMessageForTwilio($scene->entry_message);
     }
 
     /**
@@ -442,7 +455,8 @@ class TwilioController extends Controller
         $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
         $message = $response->addChild('Message');
         $message->addAttribute('format', 'html');
-        $message->addChild('Body', $message);
+        $body = $message->addChild('Body');
+        $body[0] = '<p>' . $message . '</p>';
         
         return response($response->asXML(), 200)
             ->header('Content-Type', 'text/xml');
