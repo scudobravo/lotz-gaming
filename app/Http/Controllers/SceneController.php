@@ -175,8 +175,8 @@ class SceneController extends Controller
      */
     public function edit(Scene $scene)
     {
-        $projects = Project::all(['id', 'name']);
-        $characters = Character::all(['id', 'name']);
+        $projects = Project::select(['id', 'name'])->get();
+        $characters = Character::select(['id', 'name'])->get();
         $availableScenes = Scene::where('project_id', $scene->project_id)
             ->where('id', '!=', $scene->id)
             ->select(['id', 'title', 'type'])
@@ -198,19 +198,25 @@ class SceneController extends Controller
             'item_id' => $scene->item_id,
             'character_id' => $scene->character_id,
             'project_id' => $scene->project_id,
-            'next_scene_id' => $scene->next_scene_id,
-            'choices' => $scene->choices->map(function($choice) {
+            'next_scene_id' => $scene->next_scene_id
+        ];
+
+        // Carica le scelte separatamente
+        $choices = $scene->choices()
+            ->select(['id', 'label', 'target_scene_id', 'order'])
+            ->get()
+            ->map(function($choice) {
                 return [
                     'id' => $choice->id,
                     'label' => $choice->label,
                     'target_scene_id' => $choice->target_scene_id,
                     'order' => $choice->order
                 ];
-            })
-        ];
+            });
         
         return Inertia::render('Scenes/Edit', [
             'scene' => $sceneData,
+            'choices' => $choices,
             'projects' => $projects,
             'characters' => $characters,
             'availableScenes' => $availableScenes
