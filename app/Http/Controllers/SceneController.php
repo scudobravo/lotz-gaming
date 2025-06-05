@@ -182,18 +182,35 @@ class SceneController extends Controller
             ->select(['id', 'title', 'type'])
             ->get();
         
-        // Carica le relazioni necessarie
-        $scene->load(['choices' => function($query) {
-            $query->select(['id', 'scene_id', 'label', 'target_scene_id', 'order']);
-        }]);
-        
-        Log::info('Dati scena per edit', [
-            'scene_id' => $scene->id,
-            'available_scenes_count' => $availableScenes->count()
-        ]);
+        // Carica solo i dati essenziali della scena
+        $sceneData = [
+            'id' => $scene->id,
+            'title' => $scene->title,
+            'type' => $scene->type,
+            'entry_message' => $scene->entry_message,
+            'media_gif_url' => $scene->media_gif_url,
+            'media_audio_url' => $scene->media_audio_url,
+            'puzzle_question' => $scene->puzzle_question,
+            'correct_answer' => $scene->correct_answer,
+            'success_message' => $scene->success_message,
+            'failure_message' => $scene->failure_message,
+            'max_attempts' => $scene->max_attempts,
+            'item_id' => $scene->item_id,
+            'character_id' => $scene->character_id,
+            'project_id' => $scene->project_id,
+            'next_scene_id' => $scene->next_scene_id,
+            'choices' => $scene->choices->map(function($choice) {
+                return [
+                    'id' => $choice->id,
+                    'label' => $choice->label,
+                    'target_scene_id' => $choice->target_scene_id,
+                    'order' => $choice->order
+                ];
+            })
+        ];
         
         return Inertia::render('Scenes/Edit', [
-            'scene' => $scene,
+            'scene' => $sceneData,
             'projects' => $projects,
             'characters' => $characters,
             'availableScenes' => $availableScenes
