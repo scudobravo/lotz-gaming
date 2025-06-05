@@ -54,7 +54,8 @@ class TwilioController extends Controller
                 'media_audio_url' => $project->initialScene->media_audio_url,
                 'message' => $project->initialScene->entry_message,
                 'full_gif_url' => config('app.url') . $project->initialScene->media_gif_url,
-                'full_audio_url' => config('app.url') . $project->initialScene->media_audio_url
+                'full_audio_url' => config('app.url') . $project->initialScene->media_audio_url,
+                'xml_response' => $response->asXML()
             ]);
 
             return response($response->asXML(), 200)
