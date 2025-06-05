@@ -99,8 +99,7 @@ const acceptAndContinue = async () => {
     if (twilioResponse.data && twilioResponse.data.includes('<?xml')) {
       // Apri WhatsApp con il messaggio predefinito
       const whatsappNumber = '15074422412'; // Il tuo numero Business
-      const cleanMessage = stripHtml(project.initialScene.entry_message || 'Benvenuto!');
-      const message = encodeURIComponent(cleanMessage);
+      const message = encodeURIComponent('Invia questo messaggio per iniziare il gioco!');
       const whatsappUrl = `https://api.whatsapp.com/send/?phone=${whatsappNumber}&text=${message}&type=phone_number&app_absent=0`;
       window.location.href = whatsappUrl;
     } else {
