@@ -66,6 +66,12 @@ onMounted(async () => {
   }
 });
 
+const stripHtml = (html) => {
+  const tmp = document.createElement('DIV');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
 const acceptAndContinue = async () => {
   try {
     // Prima otteniamo i dettagli del progetto
@@ -94,7 +100,8 @@ const acceptAndContinue = async () => {
     if (twilioResponse.data && twilioResponse.data.includes('<?xml')) {
       // Apri WhatsApp con il messaggio predefinito
       const whatsappNumber = '15074422412'; // Il tuo numero Business
-      const message = encodeURIComponent(project.initialScene.entry_message || 'Benvenuto!');
+      const cleanMessage = stripHtml(project.initialScene.entry_message || 'Benvenuto!');
+      const message = encodeURIComponent(cleanMessage);
       const whatsappUrl = `https://api.whatsapp.com/send/?phone=${whatsappNumber}&text=${message}&type=phone_number&app_absent=0`;
       window.location.href = whatsappUrl;
     } else {
