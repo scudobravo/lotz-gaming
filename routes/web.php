@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // Twilio Webhook
-Route::post('/api/twilio/webhook', [TwilioController::class, 'handleIncomingMessage']);
+Route::post('/twilio/webhook', [TwilioController::class, 'handleIncomingMessage']);
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
