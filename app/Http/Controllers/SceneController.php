@@ -177,18 +177,23 @@ class SceneController extends Controller
     {
         $projects = Project::all();
         $characters = Character::all();
+        $availableScenes = Scene::where('project_id', $scene->project_id)
+            ->where('id', '!=', $scene->id)
+            ->get();
         
         Log::info('Dati scena per edit', [
             'scene_id' => $scene->id,
             'media_gif_url' => $scene->media_gif_url,
             'media_audio_url' => $scene->media_audio_url,
-            'scene_data' => $scene->toArray()
+            'scene_data' => $scene->toArray(),
+            'available_scenes' => $availableScenes->toArray()
         ]);
         
         return Inertia::render('Scenes/Edit', [
             'scene' => $scene,
             'projects' => $projects,
-            'characters' => $characters
+            'characters' => $characters,
+            'availableScenes' => $availableScenes
         ]);
     }
 
