@@ -29,6 +29,16 @@ class TwilioController extends Controller
         $messageSid = $request->input('MessageSid');
 
         try {
+            // Cerca il progresso dell'utente
+            $userProgress = UserProgress::where('phone_number', $from)->first();
+
+            // Se non esiste un progresso e il messaggio è vuoto o "join", mostra il messaggio iniziale
+            if (!$userProgress && (empty(trim($body)) || strtolower(trim($body)) === 'join')) {
+                $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+                $response->addChild('Message', 'Benvenuto in Subiaco Bibliotech! Per iniziare, invia "join subiaco-bibliotech"');
+                return response($response->asXML(), 200)->header('Content-Type', 'text/xml');
+            }
+
             // Estrai il progetto dal messaggio se è un messaggio di join
             $project = null;
             if (preg_match('/^join\s+(\w+)$/i', $body, $matches)) {
@@ -40,12 +50,9 @@ class TwilioController extends Controller
                 }
             }
 
-            // Cerca il progresso dell'utente
-            $userProgress = UserProgress::where('phone_number', $from)->first();
-
             // Se non esiste un progresso e non è un messaggio di join, invia errore
             if (!$userProgress && !$project) {
-                return $this->sendErrorResponse('Per iniziare, invia "join [codice]" dove [codice] è il codice del gioco.');
+                return $this->sendErrorResponse('Per iniziare, invia "join subiaco-bibliotech"');
             }
 
             // Se esiste un progresso ma è un nuovo join, verifica che sia lo stesso progetto
