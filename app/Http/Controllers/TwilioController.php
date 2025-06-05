@@ -35,23 +35,26 @@ class TwilioController extends Controller
             // Aggiungi media se presente
             if ($project->initialScene->media_gif_url) {
                 $media = $response->addChild('Media');
-                $media[0] = url($project->initialScene->media_gif_url);
+                $media[0] = config('app.url') . $project->initialScene->media_gif_url;
             }
             if ($project->initialScene->media_audio_url) {
                 $media = $response->addChild('Media');
-                $media[0] = url($project->initialScene->media_audio_url);
+                $media[0] = config('app.url') . $project->initialScene->media_audio_url;
             }
 
             // Aggiungi il messaggio formattato in HTML
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
-            $message->addChild('Body', $project->initialScene->entry_message);
+            $body = $message->addChild('Body');
+            $body[0] = $project->initialScene->entry_message;
 
             Log::info('Risposta Twilio generata', [
                 'response' => $response->asXML(),
                 'media_gif_url' => $project->initialScene->media_gif_url,
                 'media_audio_url' => $project->initialScene->media_audio_url,
-                'message' => $project->initialScene->entry_message
+                'message' => $project->initialScene->entry_message,
+                'full_gif_url' => config('app.url') . $project->initialScene->media_gif_url,
+                'full_audio_url' => config('app.url') . $project->initialScene->media_audio_url
             ]);
 
             return response($response->asXML(), 200)
@@ -66,7 +69,8 @@ class TwilioController extends Controller
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
-            $message->addChild('Body', 'Si è verificato un errore. Riprova più tardi.');
+            $body = $message->addChild('Body');
+            $body[0] = 'Si è verificato un errore. Riprova più tardi.';
             
             return response($response->asXML(), 200)
                 ->header('Content-Type', 'text/xml');
@@ -214,10 +218,12 @@ class TwilioController extends Controller
                     
                     // Aggiungi media se presente
                     if ($nextScene->media_gif_url) {
-                        $response->addChild('Media', $nextScene->media_gif_url);
+                        $media = $response->addChild('Media');
+                        $media[0] = url($nextScene->media_gif_url);
                     }
                     if ($nextScene->media_audio_url) {
-                        $response->addChild('Media', $nextScene->media_audio_url);
+                        $media = $response->addChild('Media');
+                        $media[0] = url($nextScene->media_audio_url);
                     }
 
                     // Aggiungi il messaggio della nuova scena
@@ -240,10 +246,12 @@ class TwilioController extends Controller
         } else {
             // Se il messaggio è diverso, ripeti il messaggio della scena corrente
             if ($scene->media_gif_url) {
-                $response->addChild('Media', $scene->media_gif_url);
+                $media = $response->addChild('Media');
+                $media[0] = url($scene->media_gif_url);
             }
             if ($scene->media_audio_url) {
-                $response->addChild('Media', $scene->media_audio_url);
+                $media = $response->addChild('Media');
+                $media[0] = url($scene->media_audio_url);
             }
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
@@ -281,10 +289,12 @@ class TwilioController extends Controller
             
             // Aggiungi media se presente
             if ($nextScene->media_gif_url) {
-                $response->addChild('Media', $nextScene->media_gif_url);
+                $media = $response->addChild('Media');
+                $media[0] = url($nextScene->media_gif_url);
             }
             if ($nextScene->media_audio_url) {
-                $response->addChild('Media', $nextScene->media_audio_url);
+                $media = $response->addChild('Media');
+                $media[0] = url($nextScene->media_audio_url);
             }
 
             // Aggiungi il messaggio della nuova scena
@@ -302,10 +312,12 @@ class TwilioController extends Controller
             
             // Aggiungi media se presente
             if ($scene->media_gif_url) {
-                $response->addChild('Media', $scene->media_gif_url);
+                $media = $response->addChild('Media');
+                $media[0] = url($scene->media_gif_url);
             }
             if ($scene->media_audio_url) {
-                $response->addChild('Media', $scene->media_audio_url);
+                $media = $response->addChild('Media');
+                $media[0] = url($scene->media_audio_url);
             }
             
             $message = $response->addChild('Message');
@@ -360,10 +372,12 @@ class TwilioController extends Controller
     {
         // Aggiungi media se presente
         if ($scene->media_gif_url) {
-            $response->addChild('Media', $scene->media_gif_url);
+            $media = $response->addChild('Media');
+            $media[0] = url($scene->media_gif_url);
         }
         if ($scene->media_audio_url) {
-            $response->addChild('Media', $scene->media_audio_url);
+            $media = $response->addChild('Media');
+            $media[0] = url($scene->media_audio_url);
         }
 
         // Aggiungi il messaggio finale
