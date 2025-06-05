@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Scene;
 use App\Models\Project;
 use App\Models\Character;
+use App\Models\Item;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -177,6 +178,7 @@ class SceneController extends Controller
     {
         $projects = Project::select(['id', 'name'])->get();
         $characters = Character::select(['id', 'name'])->get();
+        $items = Item::select(['id', 'name'])->get();
         $availableScenes = Scene::where('project_id', $scene->project_id)
             ->where('id', '!=', $scene->id)
             ->select(['id', 'title', 'type'])
@@ -219,7 +221,8 @@ class SceneController extends Controller
             'choices' => $choices,
             'projects' => $projects,
             'characters' => $characters,
-            'availableScenes' => $availableScenes
+            'availableScenes' => $availableScenes,
+            'items' => $items
         ]);
     }
 
