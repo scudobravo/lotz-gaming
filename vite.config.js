@@ -10,7 +10,8 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/js/Pages/Welcome.vue',
                 'resources/js/Pages/Auth/Login.vue',
-                'resources/js/Pages/Disclaimer.vue'
+                'resources/js/Pages/Disclaimer.vue',
+                'resources/js/Pages/Projects/Index.vue'
             ],
             refresh: true,
         }),
