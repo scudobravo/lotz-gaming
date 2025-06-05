@@ -51,4 +51,26 @@ export default defineConfig({
             '@': path.resolve(__dirname, './resources/js'),
         },
     },
+    build: {
+        // Configurazione per la produzione
+        manifest: true,
+        outDir: 'public/build',
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    'vendor': ['vue', '@inertiajs/vue3'],
+                }
+            }
+        },
+        // Aumenta il limite di memoria per il build
+        chunkSizeWarningLimit: 1000,
+        // Ottimizza il build per la produzione
+        minify: 'terser',
+        terserOptions: {
+            compress: {
+                drop_console: true,
+                drop_debugger: true
+            }
+        }
+    }
 });
