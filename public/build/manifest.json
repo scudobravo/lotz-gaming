@@ -4,7 +4,7 @@
     "name": "runtime-core.esm-bundler"
   },
   "resources/js/Pages/Auth/Login.vue": {
-    "file": "assets/Login-CNisN7uv.js",
+    "file": "assets/Login-j9LLadmB.js",
     "name": "Login",
     "src": "resources/js/Pages/Auth/Login.vue",
     "isEntry": true,
@@ -22,7 +22,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-VwNYiJn5.js",
+    "file": "assets/app-CTxzIMqg.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -32,7 +32,7 @@
       "resources/js/Pages/Welcome.vue"
     ],
     "css": [
-      "assets/app-Dpi1jpmI.css"
+      "assets/app-Dz8ABWUy.css"
     ]
   }
 }
