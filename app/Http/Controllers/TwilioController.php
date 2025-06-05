@@ -41,7 +41,12 @@ class TwilioController extends Controller
     public function sendInitialMessage(Request $request)
     {
         try {
-            // Creiamo la risposta XML per Twilio con il messaggio di benvenuto
+            // Se è una richiesta POST, significa che è un messaggio in arrivo
+            if ($request->isMethod('post')) {
+                return $this->handleIncomingMessage($request);
+            }
+
+            // Se è una richiesta GET, significa che è il messaggio iniziale
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
             $body = $message->addChild('Body');
