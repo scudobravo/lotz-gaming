@@ -41,12 +41,19 @@ class TwilioController extends Controller
     public function sendInitialMessage(Request $request)
     {
         try {
+            Log::info('sendInitialMessage chiamato', [
+                'method' => $request->method(),
+                'request' => $request->all()
+            ]);
+
             // Se è una richiesta POST, significa che è un messaggio in arrivo
             if ($request->isMethod('post')) {
+                Log::info('Richiesta POST rilevata, passaggio a handleIncomingMessage');
                 return $this->handleIncomingMessage($request);
             }
 
             // Se è una richiesta GET, significa che è il messaggio iniziale
+            Log::info('Richiesta GET rilevata, invio messaggio iniziale');
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
             $body = $message->addChild('Body');
@@ -84,7 +91,8 @@ class TwilioController extends Controller
             'request' => $request->all(),
             'from' => $request->input('From'),
             'body' => $request->input('Body'),
-            'message_sid' => $request->input('MessageSid')
+            'message_sid' => $request->input('MessageSid'),
+            'method' => $request->method()
         ]);
 
         $from = $request->input('From');
@@ -105,11 +113,20 @@ class TwilioController extends Controller
                     return $this->sendErrorResponse('Progetto non trovato. Contatta l\'amministratore.');
                 }
 
+                Log::info('Progetto trovato', [
+                    'project' => $project->toArray(),
+                    'initial_scene_id' => $project->initial_scene_id
+                ]);
+
                 // Ottieni la scena iniziale
                 $initialScene = Scene::find($project->initial_scene_id);
                 if (!$initialScene) {
                     return $this->sendErrorResponse('Scena iniziale non trovata. Contatta l\'amministratore.');
                 }
+
+                Log::info('Scena iniziale trovata', [
+                    'initial_scene' => $initialScene->toArray()
+                ]);
 
                 $userProgress = UserProgress::create([
                     'phone_number' => $from,
@@ -152,10 +169,7 @@ class TwilioController extends Controller
                     ->header('Content-Type', 'text/xml');
             }
 
-            // Aggiorna l'ultima interazione
-            $userProgress->update(['last_interaction_at' => now()]);
-
-            // Ottieni la scena corrente
+            // Se esiste già un progresso, gestisci la scena corrente
             $currentScene = Scene::find($userProgress->current_scene_id);
             Log::info('Scena corrente trovata', [
                 'current_scene' => $currentScene ? $currentScene->toArray() : null
