@@ -41,12 +41,7 @@ class TwilioController extends Controller
     public function sendInitialMessage(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'phone_number' => 'required|string',
-                'project_id' => 'required|exists:projects,id'
-            ]);
-
-            // Creiamo la risposta XML per Twilio con solo il messaggio di benvenuto
+            // Rimuoviamo la validazione qui poiché non è necessaria per il messaggio iniziale
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
             $body = $message->addChild('Body');
