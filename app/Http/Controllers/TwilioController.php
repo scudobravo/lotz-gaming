@@ -31,7 +31,19 @@ class TwilioController extends Controller
 
             // Creiamo la risposta XML per Twilio
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-            $response->addChild('Message', $project->initialScene->entry_message);
+            
+            // Aggiungi media se presente
+            if ($project->initialScene->media_gif_url) {
+                $response->addChild('Media', $project->initialScene->media_gif_url);
+            }
+            if ($project->initialScene->media_audio_url) {
+                $response->addChild('Media', $project->initialScene->media_audio_url);
+            }
+
+            // Aggiungi il messaggio formattato in HTML
+            $message = $response->addChild('Message');
+            $message->addAttribute('format', 'html');
+            $message->addChild('Body', $project->initialScene->entry_message);
 
             return response($response->asXML(), 200)
                 ->header('Content-Type', 'text/xml');
@@ -43,7 +55,9 @@ class TwilioController extends Controller
             ]);
 
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-            $response->addChild('Message', 'Si è verificato un errore. Riprova più tardi.');
+            $message = $response->addChild('Message');
+            $message->addAttribute('format', 'html');
+            $message->addChild('Body', 'Si è verificato un errore. Riprova più tardi.');
             
             return response($response->asXML(), 200)
                 ->header('Content-Type', 'text/xml');
