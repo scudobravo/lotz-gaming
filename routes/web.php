@@ -19,15 +19,15 @@ Route::get('/', function () {
 });
 
 // Rotte pubbliche
-Route::get('/disclaimer/{project_id}', function ($project_id) {
+Route::get('/disclaimer/{project_slug}', function ($project_slug) {
     return Inertia::render('Disclaimer', [
-        'project_id' => $project_id
+        'project_slug' => $project_slug
     ]);
 })->name('disclaimer');
 
 Route::get('/subiaco-bibliotech', function () {
     return Inertia::render('Disclaimer', [
-        'project_id' => 'subiaco-bibliotech'
+        'project_slug' => 'subiaco-bibliotech'
     ]);
 })->name('subiaco-bibliotech');
 

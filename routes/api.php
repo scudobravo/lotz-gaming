@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TwilioController;
 use App\Models\Project;
 
-Route::get('/projects/{project}', function (Project $project) {
+Route::get('/projects/{slug}', function ($slug) {
+    $project = Project::where('slug', $slug)->firstOrFail();
     return response()->json($project->load('initialScene'));
 });
 

@@ -48,7 +48,7 @@ import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 
 const props = defineProps({
-  project_id: {
+  project_slug: {
     type: String,
     required: true
   }
@@ -58,7 +58,7 @@ const project = ref(null);
 
 onMounted(async () => {
   try {
-    const response = await axios.get(`/api/projects/${props.project_id}`);
+    const response = await axios.get(`/api/projects/${props.project_slug}`);
     project.value = response.data;
   } catch (error) {
     console.error('Errore nel recupero del progetto:', error);
@@ -68,7 +68,7 @@ onMounted(async () => {
 const acceptAndContinue = async () => {
   try {
     // Prima otteniamo i dettagli del progetto
-    const response = await axios.get(`/api/projects/${props.project_id}`);
+    const response = await axios.get(`/api/projects/${props.project_slug}`);
     const project = response.data;
 
     // Poi inviamo il messaggio iniziale tramite l'API di Twilio
