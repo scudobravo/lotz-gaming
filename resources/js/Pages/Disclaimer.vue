@@ -46,6 +46,7 @@
 import { ref, onMounted } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
+import { config } from 'vue';
 
 const props = defineProps({
   project_slug: {
@@ -85,8 +86,8 @@ const acceptAndContinue = async () => {
     // Verifichiamo che la risposta sia un XML valido
     if (twilioResponse.data && twilioResponse.data.includes('<?xml')) {
       // Apri WhatsApp con il messaggio predefinito
-      const whatsappNumber = '14155238886'; // Numero di Twilio
-      const message = encodeURIComponent('join subiaco-bibliotech');
+      const whatsappNumber = '15074422412'; // Il tuo numero Business
+      const message = encodeURIComponent(project.initialScene.entry_message);
       const whatsappUrl = `https://api.whatsapp.com/send/?phone=${whatsappNumber}&text=${message}&type=phone_number&app_absent=0`;
       window.location.href = whatsappUrl;
     } else {
