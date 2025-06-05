@@ -139,20 +139,27 @@ class TwilioController extends Controller
      */
     private function handleIntroScene($userProgress, $scene, $message, $response)
     {
-        // Aggiungi media se presente
-        if ($scene->media_gif) {
-            $response->addChild('Media', $scene->media_gif);
-        }
-        if ($scene->media_audio) {
-            $response->addChild('Media', $scene->media_audio);
-        }
-
-        // Aggiungi il messaggio della scena
-        $response->addChild('Message', $scene->entry_message);
-
-        // Se c'è una scena successiva, passa ad essa
+        // Se c'è una scena successiva, passa ad essa e mostra il suo messaggio
         if ($scene->next_scene_id) {
-            $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
+            $nextScene = Scene::find($scene->next_scene_id);
+            if ($nextScene) {
+                // Aggiorna il progresso
+                $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
+                
+                // Aggiungi media se presente
+                if ($nextScene->media_gif) {
+                    $response->addChild('Media', $nextScene->media_gif);
+                }
+                if ($nextScene->media_audio) {
+                    $response->addChild('Media', $nextScene->media_audio);
+                }
+
+                // Aggiungi il messaggio della nuova scena
+                $response->addChild('Message', $nextScene->entry_message);
+            }
+        } else {
+            // Se non ci sono scene successive, mostra un messaggio di fine
+            $response->addChild('Message', 'Hai completato questa parte del gioco. Presto arriveranno nuove avventure!');
         }
     }
 
