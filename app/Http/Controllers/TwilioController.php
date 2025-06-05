@@ -41,28 +41,11 @@ class TwilioController extends Controller
     public function sendInitialMessage(Request $request)
     {
         try {
-            // Otteniamo il progetto Subiaco Bibliotech
-            $project = Project::where('slug', 'subiaco-bibliotech')->first();
-            if (!$project) {
-                return $this->sendErrorResponse('Progetto non trovato. Contatta l\'amministratore.');
-            }
-
-            // Creiamo la risposta XML per Twilio con il messaggio della prima scena
+            // Creiamo la risposta XML per Twilio con il messaggio di benvenuto
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
-            $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            $body[0] = $this->formatMessageForTwilio($project->initialScene->entry_message);
-
-            // Aggiungi media se presente
-            if ($project->initialScene->media_gif_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $project->initialScene->media_gif_url;
-            }
-            if ($project->initialScene->media_audio_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $project->initialScene->media_audio_url;
-            }
+            $body[0] = 'Invia questo messaggio per iniziare il gioco!';
 
             Log::info('Risposta Twilio generata per messaggio di benvenuto', [
                 'response' => $response->asXML()
@@ -128,15 +111,30 @@ class TwilioController extends Controller
                     'user_progress' => $userProgress->toArray()
                 ]);
 
-                // Invia il messaggio di benvenuto
+                // Invia la risposta con media e formattazione HTML
                 $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+                
+                // Aggiungi media se presente
+                if ($project->initialScene->media_gif_url) {
+                    $media = $response->addChild('Media');
+                    $media[0] = config('app.url') . $project->initialScene->media_gif_url;
+                }
+                if ($project->initialScene->media_audio_url) {
+                    $media = $response->addChild('Media');
+                    $media[0] = config('app.url') . $project->initialScene->media_audio_url;
+                }
+
+                // Aggiungi il messaggio formattato in HTML
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                $body[0] = 'Invia questo messaggio per iniziare il gioco!';
+                $body[0] = $this->formatMessageForTwilio($project->initialScene->entry_message);
 
                 Log::info('Risposta iniziale inviata', [
-                    'response' => $response->asXML()
+                    'response' => $response->asXML(),
+                    'media_gif_url' => $project->initialScene->media_gif_url,
+                    'media_audio_url' => $project->initialScene->media_audio_url,
+                    'message' => $this->formatMessageForTwilio($project->initialScene->entry_message)
                 ]);
 
                 return response($response->asXML(), 200)
