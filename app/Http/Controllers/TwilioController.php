@@ -105,10 +105,20 @@ class TwilioController extends Controller
                     return $this->sendErrorResponse('Progetto non trovato. Contatta l\'amministratore.');
                 }
 
+                // Ottieni la prima scena
+                $firstScene = Scene::where('project_id', $project->id)
+                    ->where('type', 'intro')
+                    ->orderBy('id')
+                    ->first();
+
+                if (!$firstScene) {
+                    return $this->sendErrorResponse('Scena iniziale non trovata. Contatta l\'amministratore.');
+                }
+
                 $userProgress = UserProgress::create([
                     'phone_number' => $from,
                     'project_id' => $project->id,
-                    'current_scene_id' => $project->initial_scene_id,
+                    'current_scene_id' => $firstScene->id,
                     'attempts_remaining' => 3,
                     'last_interaction_at' => now()
                 ]);
@@ -120,26 +130,26 @@ class TwilioController extends Controller
                 $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
                 
                 // Aggiungi media se presente
-                if ($project->initialScene->media_gif_url) {
+                if ($firstScene->media_gif_url) {
                     $media = $response->addChild('Media');
-                    $media[0] = config('app.url') . $project->initialScene->media_gif_url;
+                    $media[0] = config('app.url') . $firstScene->media_gif_url;
                 }
-                if ($project->initialScene->media_audio_url) {
+                if ($firstScene->media_audio_url) {
                     $media = $response->addChild('Media');
-                    $media[0] = config('app.url') . $project->initialScene->media_audio_url;
+                    $media[0] = config('app.url') . $firstScene->media_audio_url;
                 }
 
                 // Aggiungi il messaggio formattato in HTML
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                $body[0] = $this->formatMessageForTwilio($project->initialScene->entry_message);
+                $body[0] = $this->formatMessageForTwilio($firstScene->entry_message);
 
                 Log::info('Risposta iniziale inviata', [
                     'response' => $response->asXML(),
-                    'media_gif_url' => $project->initialScene->media_gif_url,
-                    'media_audio_url' => $project->initialScene->media_audio_url,
-                    'message' => $this->formatMessageForTwilio($project->initialScene->entry_message)
+                    'media_gif_url' => $firstScene->media_gif_url,
+                    'media_audio_url' => $firstScene->media_audio_url,
+                    'message' => $this->formatMessageForTwilio($firstScene->entry_message)
                 ]);
 
                 return response($response->asXML(), 200)
