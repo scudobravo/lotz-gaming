@@ -35,9 +35,7 @@ export default defineConfig({
                 'resources/js/Pages/Scenes.vue',
                 'resources/js/Pages/Projects.vue'
             ],
-            refresh: true,
-            buildDirectory: 'build',
-            publicDirectory: 'public'
+            refresh: true
         }),
         vue({
             template: {
@@ -54,7 +52,6 @@ export default defineConfig({
         },
     },
     build: {
-        // Configurazione per la produzione
         manifest: true,
         outDir: 'public/build',
         rollupOptions: {
@@ -64,13 +61,9 @@ export default defineConfig({
                 }
             }
         },
-        // Aumenta il limite di memoria per il build
         chunkSizeWarningLimit: 1000,
-        // Usa esbuild come minificatore (incluso in Vite)
         minify: 'esbuild',
         target: 'esnext',
-        // Assicurati che il manifest venga generato
-        write: true,
         emptyOutDir: true
     }
 });
