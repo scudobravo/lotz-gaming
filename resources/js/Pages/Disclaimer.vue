@@ -65,13 +65,28 @@ onMounted(async () => {
   }
 });
 
-const acceptAndContinue = () => {
-  // Costruisci l'URL di WhatsApp con il messaggio della prima scena
-  const whatsappNumber = '14155238886'; // Numero di Twilio
-  const message = project.value?.initial_scene?.entry_message || `join ${project.value?.slug || ''}`;
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-  
-  // Apri WhatsApp
-  window.location.href = whatsappUrl;
+const acceptAndContinue = async () => {
+  try {
+    // Prima otteniamo i dettagli del progetto
+    const response = await axios.get(`/api/projects/${props.project_id}`);
+    const project = response.data;
+
+    // Poi inviamo il messaggio iniziale tramite l'API di Twilio
+    await axios.post('/api/twilio/send-initial-message', {
+      phone_number: 'whatsapp:+393703634676', // Il numero dell'utente
+      project_id: project.id
+    }, {
+      headers: {
+        'Accept': 'text/xml'
+      }
+    });
+
+    // Apri WhatsApp
+    const whatsappNumber = '14155238886'; // Numero di Twilio
+    const whatsappUrl = `https://wa.me/${whatsappNumber}`;
+    window.location.href = whatsappUrl;
+  } catch (error) {
+    console.error('Errore:', error);
+  }
 };
 </script> 

@@ -13,6 +13,40 @@ use Illuminate\Support\Facades\Log;
 class TwilioController extends Controller
 {
     /**
+     * Invia il messaggio iniziale a un utente
+     */
+    public function sendInitialMessage(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'phone_number' => 'required|string',
+                'project_id' => 'required|exists:projects,id'
+            ]);
+
+            $project = Project::with('initialScene')->findOrFail($validated['project_id']);
+            
+            if (!$project->initialScene) {
+                return response()->json(['error' => 'Scena iniziale non trovata'], 404);
+            }
+
+            // Creiamo la risposta XML per Twilio
+            $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+            $response->addChild('Message', $project->initialScene->entry_message);
+
+            return response($response->asXML(), 200)
+                ->header('Content-Type', 'text/xml');
+
+        } catch (\Exception $e) {
+            Log::error('Errore nell\'invio del messaggio iniziale', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json(['error' => 'Errore nell\'invio del messaggio'], 500);
+        }
+    }
+
+    /**
      * Gestisce i messaggi in arrivo da WhatsApp
      */
     public function handleIncomingMessage(Request $request)

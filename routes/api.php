@@ -10,4 +10,7 @@ Route::get('/projects/{project}', function (Project $project) {
 });
 
 // Twilio Webhook
-Route::match(['post', 'get'], 'twilio/webhook', [TwilioController::class, 'handleIncomingMessage'])->name('twilio.webhook'); 
+Route::match(['post', 'get'], 'twilio/webhook', [TwilioController::class, 'handleIncomingMessage'])->name('twilio.webhook');
+
+// Twilio Send Initial Message
+Route::post('/twilio/send-initial-message', [TwilioController::class, 'sendInitialMessage']); 
