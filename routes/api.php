@@ -3,9 +3,10 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TwilioController;
+use App\Models\Project;
 
-Route::get('/projects/{project}', function (App\Models\Project $project) {
-    return response()->json($project);
+Route::get('/projects/{project}', function (Project $project) {
+    return response()->json($project->load('initialScene'));
 });
 
 // Twilio Webhook

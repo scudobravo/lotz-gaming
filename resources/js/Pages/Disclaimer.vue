@@ -66,9 +66,9 @@ onMounted(async () => {
 });
 
 const acceptAndContinue = () => {
-  // Costruisci l'URL di WhatsApp con il messaggio predefinito
+  // Costruisci l'URL di WhatsApp con il messaggio della prima scena
   const whatsappNumber = '14155238886'; // Numero di Twilio
-  const message = `join ${project.value?.slug || ''}`;
+  const message = project.value?.initial_scene?.entry_message || `join ${project.value?.slug || ''}`;
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
   
   // Apri WhatsApp
