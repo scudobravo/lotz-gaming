@@ -29,34 +29,16 @@ class TwilioController extends Controller
                 return response()->json(['error' => 'Scena iniziale non trovata'], 404);
             }
 
-            // Creiamo la risposta XML per Twilio
+            // Creiamo la risposta XML per Twilio con solo il testo pre-compilato
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-            
-            // Aggiungi media se presente
-            if ($project->initialScene->media_gif_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $project->initialScene->media_gif_url;
-            }
-            if ($project->initialScene->media_audio_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $project->initialScene->media_audio_url;
-            }
-
-            // Aggiungi il messaggio formattato in HTML
             $message = $response->addChild('Message');
-            $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            // Mantieni il messaggio HTML originale senza modifiche
-            $body[0] = $project->initialScene->entry_message;
+            // Rimuovi tutti i tag HTML e mantieni solo il testo
+            $body[0] = strip_tags($project->initialScene->entry_message);
 
-            Log::info('Risposta Twilio generata', [
+            Log::info('Risposta Twilio generata per messaggio pre-compilato', [
                 'response' => $response->asXML(),
-                'media_gif_url' => $project->initialScene->media_gif_url,
-                'media_audio_url' => $project->initialScene->media_audio_url,
-                'message' => $project->initialScene->entry_message,
-                'full_gif_url' => config('app.url') . $project->initialScene->media_gif_url,
-                'full_audio_url' => config('app.url') . $project->initialScene->media_audio_url,
-                'xml_response' => $response->asXML()
+                'message' => strip_tags($project->initialScene->entry_message)
             ]);
 
             return response($response->asXML(), 200)
@@ -70,7 +52,6 @@ class TwilioController extends Controller
 
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
-            $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
             $body[0] = 'Si è verificato un errore. Riprova più tardi.';
             
@@ -119,6 +100,28 @@ class TwilioController extends Controller
                 Log::info('Nuovo user progress creato', [
                     'user_progress' => $userProgress->toArray()
                 ]);
+
+                // Invia la risposta con media e formattazione HTML
+                $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+                
+                // Aggiungi media se presente
+                if ($project->initialScene->media_gif_url) {
+                    $media = $response->addChild('Media');
+                    $media[0] = config('app.url') . $project->initialScene->media_gif_url;
+                }
+                if ($project->initialScene->media_audio_url) {
+                    $media = $response->addChild('Media');
+                    $media[0] = config('app.url') . $project->initialScene->media_audio_url;
+                }
+
+                // Aggiungi il messaggio formattato in HTML
+                $message = $response->addChild('Message');
+                $message->addAttribute('format', 'html');
+                $body = $message->addChild('Body');
+                $body[0] = $project->initialScene->entry_message;
+
+                return response($response->asXML(), 200)
+                    ->header('Content-Type', 'text/xml');
             }
 
             // Aggiorna l'ultima interazione
@@ -311,7 +314,7 @@ class TwilioController extends Controller
             Log::info('Scelta non valida, mostro le opzioni disponibili');
             
             // Se la scelta non è valida, mostra le opzioni disponibili
-            $messageText = $scene->entry_message . "\n\nOpzioni disponibili:\n";
+            $messageText = strip_tags($scene->entry_message) . "\n\nOpzioni disponibili:\n";
             foreach ($scene->choices as $index => $choice) {
                 $messageText .= ($index + 1) . ". " . $choice->label . "\n";
             }
