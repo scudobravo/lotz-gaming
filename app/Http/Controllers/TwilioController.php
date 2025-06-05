@@ -69,6 +69,9 @@ class TwilioController extends Controller
         try {
             // Cerca il progresso dell'utente
             $userProgress = UserProgress::where('phone_number', $from)->first();
+            Log::info('User progress trovato', [
+                'user_progress' => $userProgress ? $userProgress->toArray() : null
+            ]);
 
             // Se non esiste un progresso, creane uno nuovo con il progetto Subiaco Bibliotech
             if (!$userProgress) {
@@ -84,6 +87,9 @@ class TwilioController extends Controller
                     'attempts_remaining' => 3,
                     'last_interaction_at' => now()
                 ]);
+                Log::info('Nuovo user progress creato', [
+                    'user_progress' => $userProgress->toArray()
+                ]);
             }
 
             // Aggiorna l'ultima interazione
@@ -91,6 +97,10 @@ class TwilioController extends Controller
 
             // Ottieni la scena corrente
             $currentScene = Scene::find($userProgress->current_scene_id);
+            Log::info('Scena corrente trovata', [
+                'current_scene' => $currentScene ? $currentScene->toArray() : null
+            ]);
+
             if (!$currentScene) {
                 return $this->sendErrorResponse('Scena non trovata. Riprova più tardi.');
             }
@@ -103,20 +113,31 @@ class TwilioController extends Controller
             // Gestisci la scena in base al suo tipo
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             
+            Log::info('Tipo di scena', [
+                'scene_type' => $currentScene->type
+            ]);
+            
             switch ($currentScene->type) {
                 case 'intro':
+                    Log::info('Gestione scena intro');
                     $this->handleIntroScene($userProgress, $currentScene, $body, $response);
                     break;
                 case 'investigation':
+                    Log::info('Gestione scena investigation');
                     $this->handleInvestigationScene($userProgress, $currentScene, $body, $response);
                     break;
                 case 'puzzle':
+                    Log::info('Gestione scena puzzle');
                     $this->handlePuzzleScene($userProgress, $currentScene, $body, $response);
                     break;
                 case 'final':
+                    Log::info('Gestione scena final');
                     $this->handleFinalScene($userProgress, $currentScene, $body, $response);
                     break;
                 default:
+                    Log::error('Tipo di scena non valido', [
+                        'scene_type' => $currentScene->type
+                    ]);
                     return $this->sendErrorResponse('Tipo di scena non valido.');
             }
 
