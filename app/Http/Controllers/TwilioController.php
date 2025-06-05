@@ -23,22 +23,14 @@ class TwilioController extends Controller
                 'project_id' => 'required|exists:projects,id'
             ]);
 
-            $project = Project::with('initialScene')->findOrFail($validated['project_id']);
-            
-            if (!$project->initialScene) {
-                return response()->json(['error' => 'Scena iniziale non trovata'], 404);
-            }
-
-            // Creiamo la risposta XML per Twilio con solo il testo pre-compilato
+            // Creiamo la risposta XML per Twilio con solo il messaggio di inizio
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
             $body = $message->addChild('Body');
-            // Rimuovi tutti i tag HTML e mantieni solo il testo
-            $body[0] = strip_tags($project->initialScene->entry_message);
+            $body[0] = 'Invia questo messaggio per iniziare il gioco!';
 
-            Log::info('Risposta Twilio generata per messaggio pre-compilato', [
-                'response' => $response->asXML(),
-                'message' => strip_tags($project->initialScene->entry_message)
+            Log::info('Risposta Twilio generata per messaggio di inizio', [
+                'response' => $response->asXML()
             ]);
 
             return response($response->asXML(), 200)
@@ -119,6 +111,13 @@ class TwilioController extends Controller
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
                 $body[0] = $project->initialScene->entry_message;
+
+                Log::info('Risposta iniziale inviata', [
+                    'response' => $response->asXML(),
+                    'media_gif_url' => $project->initialScene->media_gif_url,
+                    'media_audio_url' => $project->initialScene->media_audio_url,
+                    'message' => $project->initialScene->entry_message
+                ]);
 
                 return response($response->asXML(), 200)
                     ->header('Content-Type', 'text/xml');
@@ -235,7 +234,7 @@ class TwilioController extends Controller
                     $message = $response->addChild('Message');
                     $message->addAttribute('format', 'html');
                     $body = $message->addChild('Body');
-                    $body[0] = strip_tags($nextScene->entry_message, '<p><em><strong><br>');
+                    $body[0] = $nextScene->entry_message;
                     
                     Log::info('Scena successiva impostata', [
                         'next_scene_id' => $nextScene->id,
@@ -247,7 +246,7 @@ class TwilioController extends Controller
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                $body[0] = 'Hai completato questa parte del gioco. Presto arriveranno nuove avventure!';
+                $body[0] = '<p>Hai completato questa parte del gioco. Presto arriveranno nuove avventure!</p>';
                 Log::info('Nessuna scena successiva trovata');
             }
         } else {
@@ -263,7 +262,7 @@ class TwilioController extends Controller
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            $body[0] = strip_tags($scene->entry_message, '<p><em><strong><br>');
+            $body[0] = $scene->entry_message;
             
             Log::info('Messaggi non corrispondono, ripeto la scena corrente');
         }
@@ -313,12 +312,6 @@ class TwilioController extends Controller
         } else {
             Log::info('Scelta non valida, mostro le opzioni disponibili');
             
-            // Se la scelta non è valida, mostra le opzioni disponibili
-            $messageText = strip_tags($scene->entry_message) . "\n\nOpzioni disponibili:\n";
-            foreach ($scene->choices as $index => $choice) {
-                $messageText .= ($index + 1) . ". " . $choice->label . "\n";
-            }
-            
             // Aggiungi media se presente
             if ($scene->media_gif_url) {
                 $media = $response->addChild('Media');
@@ -329,10 +322,28 @@ class TwilioController extends Controller
                 $media[0] = config('app.url') . $scene->media_audio_url;
             }
             
+            // Costruisci il messaggio con le opzioni
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
+            
+            // Aggiungi il messaggio principale con la formattazione HTML
+            $messageText = $scene->entry_message;
+            
+            // Aggiungi le opzioni disponibili
+            if ($scene->choices->count() > 0) {
+                $messageText .= "\n\n<b>Opzioni disponibili:</b>\n";
+                foreach ($scene->choices as $index => $choice) {
+                    $messageText .= ($index + 1) . ". " . $choice->label . "\n";
+                }
+            }
+            
             $body[0] = $messageText;
+            
+            Log::info('Messaggio di risposta generato', [
+                'message' => $messageText,
+                'choices' => $scene->choices->toArray()
+            ]);
         }
     }
 
@@ -352,11 +363,31 @@ class TwilioController extends Controller
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            $body[0] = strip_tags($scene->success_message, '<p><em><strong><br>');
+            $body[0] = $scene->success_message;
 
             // Passa alla scena successiva se presente
             if ($scene->next_scene_id) {
                 $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
+                
+                // Ottieni la nuova scena
+                $nextScene = Scene::find($scene->next_scene_id);
+                if ($nextScene) {
+                    // Aggiungi media se presente
+                    if ($nextScene->media_gif_url) {
+                        $media = $response->addChild('Media');
+                        $media[0] = config('app.url') . $nextScene->media_gif_url;
+                    }
+                    if ($nextScene->media_audio_url) {
+                        $media = $response->addChild('Media');
+                        $media[0] = config('app.url') . $nextScene->media_audio_url;
+                    }
+
+                    // Aggiungi il messaggio della nuova scena
+                    $message = $response->addChild('Message');
+                    $message->addAttribute('format', 'html');
+                    $body = $message->addChild('Body');
+                    $body[0] = $nextScene->entry_message;
+                }
             }
         } else {
             // Decrementa i tentativi rimanenti
@@ -367,13 +398,13 @@ class TwilioController extends Controller
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                $body[0] = strip_tags($scene->failure_message, '<p><em><strong><br>');
+                $body[0] = $scene->failure_message;
             } else {
                 // Altrimenti, mostra il messaggio di errore e i tentativi rimanenti
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                $body[0] = "Risposta errata. Tentativi rimanenti: " . $userProgress->attempts_remaining;
+                $body[0] = '<p>Risposta errata. <b>Tentativi rimanenti: ' . $userProgress->attempts_remaining . '</b></p>';
             }
         }
     }
@@ -397,7 +428,7 @@ class TwilioController extends Controller
         $message = $response->addChild('Message');
         $message->addAttribute('format', 'html');
         $body = $message->addChild('Body');
-        $body[0] = strip_tags($scene->entry_message, '<p><em><strong><br>');
+        $body[0] = $scene->entry_message;
     }
 
     /**
