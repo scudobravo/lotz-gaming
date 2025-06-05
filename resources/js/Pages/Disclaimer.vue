@@ -70,9 +70,12 @@ const acceptAndContinue = async () => {
   try {
     // Prima otteniamo i dettagli del progetto
     const response = await axios.get(`/api/projects/${props.project_slug}`);
+    console.log('Risposta API:', response.data);
     const project = response.data;
 
     if (!project || !project.initialScene) {
+      console.log('Project:', project);
+      console.log('Initial Scene:', project?.initialScene);
       throw new Error('Progetto o scena iniziale non trovati');
     }
 
