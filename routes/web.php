@@ -37,6 +37,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'project_id' => $project_id
         ]);
     })->name('disclaimer');
+
+    Route::get('/subiaco-bibliotech', function () {
+        return Inertia::render('Games/SubiacoBibliotech');
+    })->name('subiaco-bibliotech');
 });
 
 require __DIR__.'/auth.php';
