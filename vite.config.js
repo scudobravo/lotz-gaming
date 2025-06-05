@@ -36,6 +36,8 @@ export default defineConfig({
                 'resources/js/Pages/Projects.vue'
             ],
             refresh: true,
+            buildDirectory: 'build',
+            publicDirectory: 'public'
         }),
         vue({
             template: {
@@ -66,6 +68,9 @@ export default defineConfig({
         chunkSizeWarningLimit: 1000,
         // Usa esbuild come minificatore (incluso in Vite)
         minify: 'esbuild',
-        target: 'esnext'
+        target: 'esnext',
+        // Assicurati che il manifest venga generato
+        write: true,
+        emptyOutDir: true
     }
 });
