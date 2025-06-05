@@ -34,16 +34,28 @@ class TwilioController extends Controller
             
             // Aggiungi media se presente
             if ($project->initialScene->media_gif_url) {
-                $response->addChild('Media', $project->initialScene->media_gif_url);
+                $media = $response->addChild('Media');
+                $media->addAttribute('type', 'image/gif');
+                $media->addAttribute('url', url($project->initialScene->media_gif_url));
             }
             if ($project->initialScene->media_audio_url) {
-                $response->addChild('Media', $project->initialScene->media_audio_url);
+                $media = $response->addChild('Media');
+                $media->addAttribute('type', 'audio/mpeg');
+                $media->addAttribute('url', url($project->initialScene->media_audio_url));
             }
 
             // Aggiungi il messaggio formattato in HTML
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
-            $message->addChild('Body', $project->initialScene->entry_message);
+            $body = $message->addChild('Body');
+            $body->addChild('![CDATA[' . $project->initialScene->entry_message . ']]');
+
+            Log::info('Risposta Twilio generata', [
+                'response' => $response->asXML(),
+                'media_gif_url' => $project->initialScene->media_gif_url,
+                'media_audio_url' => $project->initialScene->media_audio_url,
+                'message' => $project->initialScene->entry_message
+            ]);
 
             return response($response->asXML(), 200)
                 ->header('Content-Type', 'text/xml');
@@ -57,7 +69,8 @@ class TwilioController extends Controller
             $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
-            $message->addChild('Body', 'Si è verificato un errore. Riprova più tardi.');
+            $body = $message->addChild('Body');
+            $body->addChild('![CDATA[Si è verificato un errore. Riprova più tardi.]]');
             
             return response($response->asXML(), 200)
                 ->header('Content-Type', 'text/xml');
