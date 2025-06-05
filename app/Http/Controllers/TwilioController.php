@@ -110,13 +110,16 @@ class TwilioController extends Controller
                 $message = $response->addChild('Message');
                 $message->addAttribute('format', 'html');
                 $body = $message->addChild('Body');
-                $body[0] = $project->initialScene->entry_message;
+                // Rimuovi gli spazi non necessari e assicurati che il messaggio sia formattato correttamente
+                $messageText = preg_replace('/\s+/', ' ', $project->initialScene->entry_message);
+                $messageText = str_replace('&nbsp;', ' ', $messageText);
+                $body[0] = $messageText;
 
                 Log::info('Risposta iniziale inviata', [
                     'response' => $response->asXML(),
                     'media_gif_url' => $project->initialScene->media_gif_url,
                     'media_audio_url' => $project->initialScene->media_audio_url,
-                    'message' => $project->initialScene->entry_message
+                    'message' => $messageText
                 ]);
 
                 return response($response->asXML(), 200)
