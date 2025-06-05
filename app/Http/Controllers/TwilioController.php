@@ -147,8 +147,20 @@ class TwilioController extends Controller
      */
     private function handleIntroScene($userProgress, $scene, $message, $response)
     {
+        // Log dei messaggi per debug
+        Log::info('Confronto messaggi in handleIntroScene', [
+            'user_message' => $message,
+            'scene_message' => $scene->entry_message,
+            'stripped_user_message' => strip_tags($message),
+            'stripped_scene_message' => strip_tags($scene->entry_message)
+        ]);
+
         // Se il messaggio dell'utente è uguale al messaggio della scena, procedi con la scena successiva
-        if (strip_tags($message) === strip_tags($scene->entry_message)) {
+        if (trim(strip_tags($message)) === trim(strip_tags($scene->entry_message))) {
+            Log::info('Messaggi corrispondono, procedo alla scena successiva', [
+                'next_scene_id' => $scene->next_scene_id
+            ]);
+
             // Se c'è una scena successiva, passa ad essa e mostra il suo messaggio
             if ($scene->next_scene_id) {
                 $nextScene = Scene::find($scene->next_scene_id);
@@ -166,10 +178,16 @@ class TwilioController extends Controller
 
                     // Aggiungi il messaggio della nuova scena
                     $response->addChild('Message', $nextScene->entry_message);
+                    
+                    Log::info('Scena successiva impostata', [
+                        'next_scene_id' => $nextScene->id,
+                        'next_scene_message' => $nextScene->entry_message
+                    ]);
                 }
             } else {
                 // Se non ci sono scene successive, mostra un messaggio di fine
                 $response->addChild('Message', 'Hai completato questa parte del gioco. Presto arriveranno nuove avventure!');
+                Log::info('Nessuna scena successiva trovata');
             }
         } else {
             // Se il messaggio è diverso, ripeti il messaggio della scena corrente
@@ -180,6 +198,8 @@ class TwilioController extends Controller
                 $response->addChild('Media', $scene->media_audio);
             }
             $response->addChild('Message', $scene->entry_message);
+            
+            Log::info('Messaggi non corrispondono, ripeto la scena corrente');
         }
     }
 
