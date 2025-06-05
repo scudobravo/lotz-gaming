@@ -42,7 +42,11 @@ class TwilioController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json(['error' => 'Errore nell\'invio del messaggio'], 500);
+            $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+            $response->addChild('Message', 'Si è verificato un errore. Riprova più tardi.');
+            
+            return response($response->asXML(), 200)
+                ->header('Content-Type', 'text/xml');
         }
     }
 

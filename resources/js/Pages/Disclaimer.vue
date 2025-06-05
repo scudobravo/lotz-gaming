@@ -72,21 +72,28 @@ const acceptAndContinue = async () => {
     const project = response.data;
 
     // Poi inviamo il messaggio iniziale tramite l'API di Twilio
-    await axios.post('/api/twilio/send-initial-message', {
+    const twilioResponse = await axios.post('/api/twilio/send-initial-message', {
       phone_number: 'whatsapp:+393703634676', // Il numero dell'utente
       project_id: project.id
     }, {
       headers: {
-        'Accept': 'text/xml'
+        'Accept': 'text/xml',
+        'Content-Type': 'application/json'
       }
     });
 
-    // Apri WhatsApp
-    const whatsappNumber = '14155238886'; // Numero di Twilio
-    const whatsappUrl = `https://wa.me/${whatsappNumber}`;
-    window.location.href = whatsappUrl;
+    // Verifichiamo che la risposta sia un XML valido
+    if (twilioResponse.data && twilioResponse.data.includes('<?xml')) {
+      // Apri WhatsApp
+      const whatsappNumber = '14155238886'; // Numero di Twilio
+      const whatsappUrl = `https://wa.me/${whatsappNumber}`;
+      window.location.href = whatsappUrl;
+    } else {
+      throw new Error('Risposta non valida da Twilio');
+    }
   } catch (error) {
     console.error('Errore:', error);
+    alert('Si è verificato un errore. Riprova più tardi.');
   }
 };
 </script> 
