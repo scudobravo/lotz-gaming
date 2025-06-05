@@ -64,13 +64,8 @@ export default defineConfig({
         },
         // Aumenta il limite di memoria per il build
         chunkSizeWarningLimit: 1000,
-        // Ottimizza il build per la produzione
-        minify: 'terser',
-        terserOptions: {
-            compress: {
-                drop_console: true,
-                drop_debugger: true
-            }
-        }
+        // Usa esbuild come minificatore (incluso in Vite)
+        minify: 'esbuild',
+        target: 'esnext'
     }
 });
