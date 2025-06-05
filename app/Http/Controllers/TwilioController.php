@@ -70,36 +70,13 @@ class TwilioController extends Controller
             // Cerca il progresso dell'utente
             $userProgress = UserProgress::where('phone_number', $from)->first();
 
-            // Se non esiste un progresso e il messaggio è vuoto o "join", mostra il messaggio iniziale
-            if (!$userProgress && (empty(trim($body)) || strtolower(trim($body)) === 'join')) {
-                $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-                $response->addChild('Message', 'Benvenuto in Subiaco Bibliotech! Per iniziare, invia "join subiaco-bibliotech"');
-                return response($response->asXML(), 200)->header('Content-Type', 'text/xml');
-            }
-
-            // Estrai il progetto dal messaggio se è un messaggio di join
-            $project = null;
-            if (preg_match('/^join\s+(\w+)$/i', $body, $matches)) {
-                $projectSlug = $matches[1];
-                $project = Project::where('slug', $projectSlug)->first();
-                
+            // Se non esiste un progresso, creane uno nuovo con il progetto Subiaco Bibliotech
+            if (!$userProgress) {
+                $project = Project::where('slug', 'subiaco-bibliotech')->first();
                 if (!$project) {
-                    return $this->sendErrorResponse('Progetto non trovato. Verifica il codice e riprova.');
+                    return $this->sendErrorResponse('Progetto non trovato. Contatta l\'amministratore.');
                 }
-            }
 
-            // Se non esiste un progresso e non è un messaggio di join, invia errore
-            if (!$userProgress && !$project) {
-                return $this->sendErrorResponse('Per iniziare, invia "join subiaco-bibliotech"');
-            }
-
-            // Se esiste un progresso ma è un nuovo join, verifica che sia lo stesso progetto
-            if ($userProgress && $project && $userProgress->project_id !== $project->id) {
-                return $this->sendErrorResponse('Hai già un gioco in corso. Completa quello prima di iniziarne un altro.');
-            }
-
-            // Se non esiste un progresso e abbiamo un progetto, creane uno nuovo
-            if (!$userProgress && $project) {
                 $userProgress = UserProgress::create([
                     'phone_number' => $from,
                     'project_id' => $project->id,
