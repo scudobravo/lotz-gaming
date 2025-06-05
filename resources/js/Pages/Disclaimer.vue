@@ -72,6 +72,10 @@ const acceptAndContinue = async () => {
     const response = await axios.get(`/api/projects/${props.project_slug}`);
     const project = response.data;
 
+    if (!project || !project.initialScene) {
+      throw new Error('Progetto o scena iniziale non trovati');
+    }
+
     // Poi inviamo il messaggio iniziale tramite l'API di Twilio
     const twilioResponse = await axios.post('/api/twilio/send-initial-message', {
       phone_number: 'whatsapp:+393703634676', // Il numero dell'utente
@@ -87,7 +91,7 @@ const acceptAndContinue = async () => {
     if (twilioResponse.data && twilioResponse.data.includes('<?xml')) {
       // Apri WhatsApp con il messaggio predefinito
       const whatsappNumber = '15074422412'; // Il tuo numero Business
-      const message = encodeURIComponent(project.initialScene.entry_message);
+      const message = encodeURIComponent(project.initialScene.entry_message || 'Benvenuto!');
       const whatsappUrl = `https://api.whatsapp.com/send/?phone=${whatsappNumber}&text=${message}&type=phone_number&app_absent=0`;
       window.location.href = whatsappUrl;
     } else {
