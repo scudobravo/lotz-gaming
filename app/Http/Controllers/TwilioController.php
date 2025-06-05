@@ -229,10 +229,21 @@ class TwilioController extends Controller
      */
     private function handleInvestigationScene($userProgress, $scene, $message, $response)
     {
+        // Log delle scelte disponibili
+        Log::info('Scelte disponibili per la scena', [
+            'scene_id' => $scene->id,
+            'choices' => $scene->choices->toArray(),
+            'user_message' => $message
+        ]);
+
         // Se il messaggio è una scelta valida
         $choice = $scene->choices()->where('label', $message)->first();
         
         if ($choice) {
+            Log::info('Scelta valida trovata', [
+                'choice' => $choice->toArray()
+            ]);
+
             // Passa alla scena target
             $userProgress->update(['current_scene_id' => $choice->target_scene_id]);
             
@@ -250,11 +261,22 @@ class TwilioController extends Controller
             // Aggiungi il messaggio della nuova scena
             $response->addChild('Message', $nextScene->entry_message);
         } else {
+            Log::info('Scelta non valida, mostro le opzioni disponibili');
+            
             // Se la scelta non è valida, mostra le opzioni disponibili
-            $messageText = $scene->entry_message . "\n\nOpzioni disponibili:\n";
+            $messageText = strip_tags($scene->entry_message) . "\n\nOpzioni disponibili:\n";
             foreach ($scene->choices as $index => $choice) {
                 $messageText .= ($index + 1) . ". " . $choice->label . "\n";
             }
+            
+            // Aggiungi media se presente
+            if ($scene->media_gif) {
+                $response->addChild('Media', $scene->media_gif);
+            }
+            if ($scene->media_audio) {
+                $response->addChild('Media', $scene->media_audio);
+            }
+            
             $response->addChild('Message', $messageText);
         }
     }
