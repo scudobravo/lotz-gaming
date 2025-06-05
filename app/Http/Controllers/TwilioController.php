@@ -17,14 +17,21 @@ class TwilioController extends Controller
      */
     private function formatMessageForTwilio($message)
     {
+        // Decodifica prima le entità HTML
+        $message = html_entity_decode($message, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
         // Rimuovi gli spazi non necessari
         $message = preg_replace('/\s+/', ' ', $message);
+        
         // Sostituisci &nbsp; con spazi normali
         $message = str_replace('&nbsp;', ' ', $message);
+        
         // Rimuovi le virgolette non necessarie
         $message = str_replace('"', '', $message);
+        
         // Assicurati che il messaggio sia valido HTML
-        $message = html_entity_decode($message, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $message = strip_tags($message, '<p><em><strong><br><b><i>');
+        
         return $message;
     }
 
