@@ -2,16 +2,17 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
+import glob from 'glob';
+
+// Trova tutti i file .vue nella directory Pages
+const vueFiles = glob.sync('resources/js/Pages/**/*.vue');
 
 export default defineConfig({
     plugins: [
         laravel({
             input: [
                 'resources/js/app.js',
-                'resources/js/Pages/Welcome.vue',
-                'resources/js/Pages/Auth/Login.vue',
-                'resources/js/Pages/Disclaimer.vue',
-                'resources/js/Pages/Projects/Index.vue'
+                ...vueFiles
             ],
             refresh: true,
         }),
