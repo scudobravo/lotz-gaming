@@ -18,6 +18,20 @@ Route::get('/', function () {
     ]);
 });
 
+// Rotte pubbliche
+Route::get('/disclaimer/{project_id}', function ($project_id) {
+    return Inertia::render('Disclaimer', [
+        'project_id' => $project_id
+    ]);
+})->name('disclaimer');
+
+Route::get('/subiaco-bibliotech', function () {
+    return Inertia::render('Disclaimer', [
+        'project_id' => 'subiaco-bibliotech'
+    ]);
+})->name('subiaco-bibliotech');
+
+// Rotte protette
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
@@ -31,16 +45,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    Route::get('/disclaimer/{project_id}', function ($project_id) {
-        return Inertia::render('Disclaimer', [
-            'project_id' => $project_id
-        ]);
-    })->name('disclaimer');
-
-    Route::get('/subiaco-bibliotech', function () {
-        return Inertia::render('Games/SubiacoBibliotech');
-    })->name('subiaco-bibliotech');
 });
 
 require __DIR__.'/auth.php';
