@@ -46,7 +46,6 @@
 import { ref, onMounted } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
-import { config } from 'vue';
 
 const props = defineProps({
   project_slug: {
