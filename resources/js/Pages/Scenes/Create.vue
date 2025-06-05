@@ -124,6 +124,7 @@ const submit = async () => {
         formData.append('type', form.type);
         formData.append('order', form.order);
         formData.append('project_id', form.project_id);
+        formData.append('next_scene_id', form.next_scene_id);
         
         if (form.media_gif instanceof File) {
             console.log('Aggiungo GIF al form:', {

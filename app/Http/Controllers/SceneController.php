@@ -75,7 +75,8 @@ class SceneController extends Controller
                 'metadata' => 'nullable|json',
                 'project_id' => 'required|exists:projects,id',
                 'media_gif' => 'nullable|image|mimes:gif,jpg,jpeg,png|max:2048',
-                'media_audio' => 'nullable|file|mimes:mp3,wav|max:10240'
+                'media_audio' => 'nullable|file|mimes:mp3,wav|max:10240',
+                'next_scene_id' => 'nullable|exists:scenes,id'
             ]);
 
             DB::beginTransaction();
@@ -257,6 +258,7 @@ class SceneController extends Controller
                 'item_id' => 'nullable|exists:items,id',
                 'character_id' => 'nullable|exists:characters,id',
                 'project_id' => 'required|exists:projects,id',
+                'next_scene_id' => 'nullable|exists:scenes,id',
                 'choices' => 'required_if:type,investigation|array',
                 'choices.*.label' => 'required_if:type,investigation|string|max:255',
                 'choices.*.target_scene_id' => 'required_if:type,investigation|exists:scenes,id',
