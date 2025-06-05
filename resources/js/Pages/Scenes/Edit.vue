@@ -146,6 +146,11 @@ const submit = async () => {
         formData.append('project_id', form.project_id);
         formData.append('next_scene_id', form.next_scene_id);
         
+        // Aggiungi le scelte se il tipo è investigation
+        if (form.type === 'investigation') {
+            formData.append('choices', JSON.stringify(form.choices));
+        }
+        
         if (form.media_gif instanceof File) {
             console.log('Aggiungo GIF al form:', {
                 name: form.media_gif.name,

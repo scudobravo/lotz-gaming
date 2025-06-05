@@ -185,25 +185,6 @@ class SceneController extends Controller
             ->select(['id', 'title', 'type'])
             ->get();
         
-        // Carica solo i dati essenziali della scena
-        $sceneData = [
-            'id' => $scene->id,
-            'title' => $scene->title,
-            'type' => $scene->type,
-            'entry_message' => $scene->entry_message,
-            'media_gif_url' => $scene->media_gif_url,
-            'media_audio_url' => $scene->media_audio_url,
-            'puzzle_question' => $scene->puzzle_question,
-            'correct_answer' => $scene->correct_answer,
-            'success_message' => $scene->success_message,
-            'failure_message' => $scene->failure_message,
-            'max_attempts' => $scene->max_attempts,
-            'item_id' => $scene->item_id,
-            'character_id' => $scene->character_id,
-            'project_id' => $scene->project_id,
-            'next_scene_id' => $scene->next_scene_id
-        ];
-
         // Carica le scelte separatamente
         $choices = $scene->choices()
             ->select(['id', 'label', 'target_scene_id', 'order'])
@@ -218,7 +199,7 @@ class SceneController extends Controller
             });
         
         return Inertia::render('Scenes/Edit', [
-            'scene' => $sceneData,
+            'scene' => $scene,
             'choices' => $choices,
             'projects' => $projects,
             'characters' => $characters,
@@ -232,60 +213,45 @@ class SceneController extends Controller
      */
     public function update(Request $request, Scene $scene)
     {
-        Log::info('Richiesta di update scena ricevuta', [
-            'all' => $request->all(),
-            'has_file_gif' => $request->hasFile('media_gif'),
-            'has_file_audio' => $request->hasFile('media_audio'),
-            'files' => $request->allFiles(),
-            'gif_present' => $request->has('media_gif'),
-            'gif_type' => $request->input('media_gif') ? gettype($request->input('media_gif')) : 'null',
-            'request_files' => $request->files->all(),
-            'content_type' => $request->header('Content-Type')
-        ]);
-
         try {
+            Log::info('Inizio aggiornamento scena', [
+                'scene_id' => $scene->id,
+                'request_data' => $request->all()
+            ]);
+
+            DB::beginTransaction();
+
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
                 'type' => 'required|in:intro,investigation,puzzle,final',
                 'entry_message' => 'required|string',
-                'media_gif' => 'nullable|image|mimes:gif,jpg,jpeg,png|max:2048',
+                'media_gif' => 'nullable|file|mimes:gif|max:10240',
                 'media_audio' => 'nullable|file|mimes:mp3,wav|max:10240',
-                'puzzle_question' => 'required_if:type,puzzle|nullable|string',
-                'correct_answer' => 'required_if:type,puzzle|nullable|string',
-                'success_message' => 'required_if:type,puzzle|nullable|string',
-                'failure_message' => 'required_if:type,puzzle|nullable|string',
-                'max_attempts' => 'required_if:type,puzzle|nullable|integer|min:1',
+                'puzzle_question' => 'nullable|string',
+                'correct_answer' => 'nullable|string',
+                'success_message' => 'nullable|string',
+                'failure_message' => 'nullable|string',
+                'max_attempts' => 'nullable|integer|min:1',
                 'item_id' => 'nullable|exists:items,id',
                 'character_id' => 'nullable|exists:characters,id',
                 'project_id' => 'required|exists:projects,id',
                 'next_scene_id' => 'nullable|exists:scenes,id',
-                'choices' => 'required_if:type,investigation|array',
-                'choices.*.label' => 'required_if:type,investigation|string|max:255',
-                'choices.*.target_scene_id' => 'required_if:type,investigation|exists:scenes,id',
-                'choices.*.order' => 'required_if:type,investigation|integer|min:0'
+                'choices' => 'nullable|string'
             ]);
 
-            DB::beginTransaction();
+            Log::info('Dati validati', [
+                'validated_data' => $validated
+            ]);
 
             // Gestione del file GIF
             if ($request->hasFile('media_gif')) {
                 $file = $request->file('media_gif');
                 
                 if (!$file->isValid()) {
-                    throw new \Exception('File non valido: ' . $file->getErrorMessage());
+                    throw new \Exception('File GIF non valido: ' . $file->getErrorMessage());
                 }
 
-                Log::info('File GIF ricevuto', [
-                    'name' => $file->getClientOriginalName(),
-                    'size' => $file->getSize(),
-                    'mime' => $file->getMimeType(),
-                    'tmp_path' => $file->getPathname(),
-                    'isValid' => $file->isValid(),
-                    'error' => $file->getError(),
-                    'error_message' => $file->getErrorMessage()
-                ]);
-
-                // Elimina la vecchia GIF se esiste
+                // Elimina il vecchio GIF se esiste
                 if ($scene->media_gif && Storage::disk('public')->exists($scene->media_gif)) {
                     Storage::disk('public')->delete($scene->media_gif);
                 }
@@ -294,17 +260,10 @@ class SceneController extends Controller
                 $path = $file->storeAs('scenes/gifs', $fileName, 'public');
                 
                 if (!$path) {
-                    throw new \Exception('Impossibile salvare il file');
+                    throw new \Exception('Impossibile salvare il file GIF');
                 }
                 
                 $validated['media_gif'] = $path;
-                $validated['media_gif_url'] = '/storage/' . $path;
-
-                Log::info('GIF salvata con successo', [
-                    'path' => $path,
-                    'url' => '/storage/' . $path,
-                    'full_path' => Storage::disk('public')->path($path)
-                ]);
             }
 
             // Gestione del file audio
@@ -328,51 +287,52 @@ class SceneController extends Controller
                 }
                 
                 $validated['media_audio'] = $path;
-                $validated['media_audio_url'] = '/storage/' . $path;
             }
 
             // Aggiorna la scena
             $scene->update($validated);
 
+            Log::info('Scena aggiornata', [
+                'scene' => $scene->toArray()
+            ]);
+
             // Gestione delle scelte per le scene di tipo investigation
-            if ($scene->type === 'investigation') {
+            if ($scene->type === 'investigation' && $request->has('choices')) {
+                // Decodifica le scelte dal JSON
+                $choices = json_decode($request->choices, true);
+                
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('Errore nel parsing delle scelte: ' . json_last_error_msg());
+                }
+
                 // Elimina le scelte esistenti
                 $scene->choices()->delete();
                 
                 // Crea le nuove scelte
-                foreach ($request->choices as $choice) {
+                foreach ($choices as $choice) {
                     $scene->choices()->create([
                         'label' => $choice['label'],
                         'target_scene_id' => $choice['target_scene_id'],
                         'order' => $choice['order']
                     ]);
                 }
+
+                Log::info('Scelte aggiornate', [
+                    'choices' => $choices
+                ]);
             }
 
             DB::commit();
+            Log::info('Aggiornamento completato con successo');
             return response()->json(['success' => true]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-            Log::error('Errore di validazione durante l\'aggiornamento', [
-                'errors' => $e->errors()
-            ]);
-            
-            return response()->json([
-                'message' => 'Errore di validazione',
-                'errors' => $e->errors()
-            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Errore durante l\'aggiornamento', [
+            Log::error('Errore durante l\'aggiornamento della scena', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
-            return response()->json([
-                'message' => 'Errore durante l\'aggiornamento',
-                'errors' => ['media_gif' => [$e->getMessage()]]
-            ], 422);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
