@@ -9,4 +9,4 @@ Route::get('/projects/{project}', function (App\Models\Project $project) {
 });
 
 // Twilio Webhook
-Route::post('/twilio/webhook', [TwilioController::class, 'handleIncomingMessage']); 
+Route::post('/api/twilio/webhook', [TwilioController::class, 'handleIncomingMessage']); 
