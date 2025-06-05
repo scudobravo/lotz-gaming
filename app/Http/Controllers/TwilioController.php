@@ -46,8 +46,8 @@ class TwilioController extends Controller
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            // Rimuovi i tag HTML non necessari e mantieni solo il contenuto
-            $body[0] = strip_tags($project->initialScene->entry_message, '<p><em><strong><br>');
+            // Mantieni il messaggio HTML originale senza modifiche
+            $body[0] = $project->initialScene->entry_message;
 
             Log::info('Risposta Twilio generata', [
                 'response' => $response->asXML(),
@@ -306,12 +306,12 @@ class TwilioController extends Controller
             $message = $response->addChild('Message');
             $message->addAttribute('format', 'html');
             $body = $message->addChild('Body');
-            $body[0] = strip_tags($nextScene->entry_message, '<p><em><strong><br>');
+            $body[0] = $nextScene->entry_message;
         } else {
             Log::info('Scelta non valida, mostro le opzioni disponibili');
             
             // Se la scelta non è valida, mostra le opzioni disponibili
-            $messageText = strip_tags($scene->entry_message) . "\n\nOpzioni disponibili:\n";
+            $messageText = $scene->entry_message . "\n\nOpzioni disponibili:\n";
             foreach ($scene->choices as $index => $choice) {
                 $messageText .= ($index + 1) . ". " . $choice->label . "\n";
             }
