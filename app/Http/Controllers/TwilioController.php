@@ -48,8 +48,82 @@ class TwilioController extends Controller
 
             // Se è una richiesta POST, significa che è un messaggio in arrivo
             if ($request->isMethod('post')) {
-                Log::info('Richiesta POST rilevata, passaggio a handleIncomingMessage');
-                return $this->handleIncomingMessage($request);
+                Log::info('Richiesta POST rilevata');
+                
+                // Estrai il numero di telefono dalla richiesta Twilio
+                $phoneNumber = $request->input('From');
+                $projectId = $request->input('project_id', 1);
+
+                if (!$phoneNumber) {
+                    Log::error('Numero di telefono mancante nella richiesta Twilio');
+                    return $this->sendErrorResponse('Numero di telefono mancante');
+                }
+
+                // Cerca il progresso dell'utente
+                $userProgress = UserProgress::where('phone_number', $phoneNumber)
+                    ->where('project_id', $projectId)
+                    ->first();
+
+                Log::info('User progress trovato in sendInitialMessage', ['user_progress' => $userProgress]);
+
+                // Se non esiste un progresso, creane uno nuovo
+                if (!$userProgress) {
+                    // Ottieni il progetto e la sua scena iniziale
+                    $project = Project::find($projectId);
+                    if (!$project) {
+                        Log::error('Progetto non trovato', ['project_id' => $projectId]);
+                        return $this->sendErrorResponse('Progetto non trovato');
+                    }
+
+                    // Ottieni la scena iniziale
+                    $initialScene = Scene::find($project->initial_scene_id);
+                    if (!$initialScene) {
+                        Log::error('Scena iniziale non trovata', ['initial_scene_id' => $project->initial_scene_id]);
+                        return $this->sendErrorResponse('Scena iniziale non trovata');
+                    }
+
+                    // Crea un nuovo progresso utente
+                    $userProgress = UserProgress::create([
+                        'phone_number' => $phoneNumber,
+                        'project_id' => $projectId,
+                        'current_scene_id' => $initialScene->id,
+                        'attempts_remaining' => 3,
+                        'last_interaction_at' => now()
+                    ]);
+
+                    // Invia la risposta con media e formattazione HTML
+                    $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+                    
+                    // Aggiungi media se presente
+                    if ($initialScene->media_gif_url) {
+                        $media = $response->addChild('Media');
+                        $media[0] = config('app.url') . $initialScene->media_gif_url;
+                    }
+                    if ($initialScene->media_audio_url) {
+                        $media = $response->addChild('Media');
+                        $media[0] = config('app.url') . $initialScene->media_audio_url;
+                    }
+
+                    // Aggiungi il messaggio formattato in HTML
+                    $message = $response->addChild('Message');
+                    $message->addAttribute('format', 'html');
+                    $body = $message->addChild('Body');
+                    $body[0] = $this->formatMessageForTwilio($initialScene->entry_message);
+
+                    Log::info('Risposta iniziale inviata', [
+                        'response' => $response->asXML(),
+                        'media_gif_url' => $initialScene->media_gif_url,
+                        'media_audio_url' => $initialScene->media_audio_url,
+                        'message' => $this->formatMessageForTwilio($initialScene->entry_message)
+                    ]);
+
+                    return response($response->asXML(), 200)
+                        ->header('Content-Type', 'text/xml');
+                } else {
+                    // Se esiste già un progresso, passa a handleIncomingMessage
+                    Log::info('Progresso esistente trovato, passaggio a handleIncomingMessage');
+                    return $this->handleIncomingMessage($request);
+                }
             }
 
             // Se è una richiesta GET, significa che è il messaggio iniziale
@@ -97,14 +171,14 @@ class TwilioController extends Controller
 
             // Estrai il numero di telefono dalla richiesta Twilio
             $phoneNumber = $request->input('From');
-            $projectId = $request->input('project_id', 1); // Default a 1 se non specificato
+            $projectId = $request->input('project_id', 1);
 
             if (!$phoneNumber) {
                 Log::error('Numero di telefono mancante nella richiesta Twilio');
                 return $this->sendErrorResponse('Numero di telefono mancante');
             }
 
-            // Cerca o crea il progresso dell'utente
+            // Cerca il progresso dell'utente
             $userProgress = UserProgress::where('phone_number', $phoneNumber)
                 ->where('project_id', $projectId)
                 ->first();
@@ -112,81 +186,25 @@ class TwilioController extends Controller
             Log::info('User progress trovato', ['user_progress' => $userProgress]);
 
             if (!$userProgress) {
-                // Ottieni il progetto e la sua scena iniziale
-                $project = Project::find($projectId);
-                if (!$project) {
-                    Log::error('Progetto non trovato', ['project_id' => $projectId]);
-                    return $this->sendErrorResponse('Progetto non trovato');
-                }
-
-                // Ottieni la scena iniziale
-                $initialScene = Scene::find($project->initial_scene_id);
-                if (!$initialScene) {
-                    Log::error('Scena iniziale non trovata', ['initial_scene_id' => $project->initial_scene_id]);
-                    return $this->sendErrorResponse('Scena iniziale non trovata');
-                }
-
-                // Crea un nuovo progresso utente
-                $userProgress = UserProgress::create([
-                    'phone_number' => $phoneNumber,
-                    'project_id' => $projectId,
-                    'current_scene_id' => $initialScene->id,
-                    'attempts_remaining' => 3,
-                    'last_interaction_at' => now()
-                ]);
-
-                // Invia la risposta con media e formattazione HTML
-                $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-                
-                // Aggiungi media se presente
-                if ($initialScene->media_gif_url) {
-                    $media = $response->addChild('Media');
-                    $media[0] = config('app.url') . $initialScene->media_gif_url;
-                }
-                if ($initialScene->media_audio_url) {
-                    $media = $response->addChild('Media');
-                    $media[0] = config('app.url') . $initialScene->media_audio_url;
-                }
-
-                // Aggiungi il messaggio formattato in HTML
-                $message = $response->addChild('Message');
-                $message->addAttribute('format', 'html');
-                $body = $message->addChild('Body');
-                $body[0] = $this->formatMessageForTwilio($initialScene->entry_message);
-
-                Log::info('Risposta iniziale inviata', [
-                    'response' => $response->asXML(),
-                    'media_gif_url' => $initialScene->media_gif_url,
-                    'media_audio_url' => $initialScene->media_audio_url,
-                    'message' => $this->formatMessageForTwilio($initialScene->entry_message)
-                ]);
-
-                return response($response->asXML(), 200)
-                    ->header('Content-Type', 'text/xml');
+                Log::error('Progresso utente non trovato');
+                return $this->sendErrorResponse('Progresso utente non trovato');
             }
 
-            // Se esiste già un progresso, gestisci la scena corrente
+            // Ottieni la scena corrente
             $currentScene = Scene::find($userProgress->current_scene_id);
-            Log::info('Scena corrente trovata', [
-                'current_scene' => $currentScene ? $currentScene->toArray() : null
-            ]);
-
             if (!$currentScene) {
-                return $this->sendErrorResponse('Scena non trovata. Riprova più tardi.');
+                Log::error('Scena corrente non trovata', ['scene_id' => $userProgress->current_scene_id]);
+                return $this->sendErrorResponse('Scena corrente non trovata');
             }
 
-            // Verifica che la scena appartenga al progetto corretto
-            if ($currentScene->project_id !== $userProgress->project_id) {
-                return $this->sendErrorResponse('Errore di configurazione del gioco. Contatta l\'amministratore.');
-            }
+            Log::info('Scena corrente trovata', ['current_scene' => $currentScene]);
+
+            // Prepara la risposta
+            $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
 
             // Gestisci la scena in base al suo tipo
-            $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-            
-            Log::info('Tipo di scena', [
-                'scene_type' => $currentScene->type
-            ]);
-            
+            Log::info('Tipo di scena', ['scene_type' => $currentScene->type]);
+
             switch ($currentScene->type) {
                 case 'intro':
                     Log::info('Gestione scena intro');
@@ -205,18 +223,15 @@ class TwilioController extends Controller
                     $this->handleFinalScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 default:
-                    Log::error('Tipo di scena non valido', [
-                        'scene_type' => $currentScene->type
-                    ]);
-                    return $this->sendErrorResponse('Tipo di scena non valido.');
+                    Log::error('Tipo di scena non valido', ['type' => $currentScene->type]);
+                    return $this->sendErrorResponse('Tipo di scena non valido');
             }
 
-            // Log della risposta
             Log::info('Risposta Twilio generata', [
                 'response' => $response->asXML(),
-                'current_scene' => $currentScene->id,
-                'next_scene' => $currentScene->next_scene_id,
-                'user_progress' => $userProgress->current_scene_id
+                'current_scene' => $userProgress->current_scene_id,
+                'next_scene' => $userProgress->next_scene_id,
+                'user_progress' => $userProgress->id
             ]);
 
             return response($response->asXML(), 200)
