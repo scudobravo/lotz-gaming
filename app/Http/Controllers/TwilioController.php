@@ -106,21 +106,20 @@ class TwilioController extends Controller
 
                     // Costruisci la risposta XML
                     $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
-                    $xml .= '<Message format="html">';
                     
                     // Aggiungi media se presente
                     if ($initialScene->media_gif_url) {
-                        $xml .= '<Media>' . config('app.url') . $initialScene->media_gif_url . '</Media>';
+                        $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_gif_url . '</Media></Message>';
                         Log::info('Aggiunto media GIF', ['url' => $initialScene->media_gif_url]);
                     }
                     if ($initialScene->media_audio_url) {
-                        $xml .= '<Media>' . config('app.url') . $initialScene->media_audio_url . '</Media>';
+                        $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_audio_url . '</Media></Message>';
                         Log::info('Aggiunto media audio', ['url' => $initialScene->media_audio_url]);
                     }
 
                     // Aggiungi il messaggio formattato in HTML
-                    $xml .= '<Body>' . $initialScene->entry_message . '</Body>';
-                    $xml .= '</Message></Response>';
+                    $xml .= '<Message format="html"><Body>' . $initialScene->entry_message . '</Body></Message>';
+                    $xml .= '</Response>';
 
                     Log::info('Risposta iniziale inviata', [
                         'response' => $xml,
