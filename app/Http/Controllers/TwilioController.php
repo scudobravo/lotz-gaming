@@ -104,35 +104,31 @@ class TwilioController extends Controller
                         'last_interaction_at' => now()
                     ]);
 
-                    // Invia la risposta con media e formattazione HTML
-                    $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
+                    // Costruisci la risposta XML
+                    $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
                     
                     // Aggiungi media se presente
                     if ($initialScene->media_gif_url) {
-                        $media = $response->addChild('Media');
-                        $media[0] = config('app.url') . $initialScene->media_gif_url;
+                        $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_gif_url . '</Media></Message>';
                         Log::info('Aggiunto media GIF', ['url' => $initialScene->media_gif_url]);
                     }
                     if ($initialScene->media_audio_url) {
-                        $media = $response->addChild('Media');
-                        $media[0] = config('app.url') . $initialScene->media_audio_url;
+                        $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_audio_url . '</Media></Message>';
                         Log::info('Aggiunto media audio', ['url' => $initialScene->media_audio_url]);
                     }
 
                     // Aggiungi il messaggio formattato in HTML
-                    $message = $response->addChild('Message');
-                    $message->addAttribute('format', 'html');
-                    $body = $message->addChild('Body');
-                    $body[0] = $initialScene->entry_message;
+                    $xml .= '<Message format="html"><Body>' . $initialScene->entry_message . '</Body></Message>';
+                    $xml .= '</Response>';
 
                     Log::info('Risposta iniziale inviata', [
-                        'response' => $response->asXML(),
+                        'response' => $xml,
                         'media_gif_url' => $initialScene->media_gif_url,
                         'media_audio_url' => $initialScene->media_audio_url,
                         'message' => $initialScene->entry_message
                     ]);
 
-                    return response($response->asXML(), 200)
+                    return response($xml, 200)
                         ->header('Content-Type', 'text/xml');
                 }
 
@@ -143,16 +139,15 @@ class TwilioController extends Controller
 
             // Se è una richiesta GET, significa che è il messaggio iniziale
             Log::info('Richiesta GET rilevata, invio messaggio iniziale');
-            $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-            $message = $response->addChild('Message');
-            $body = $message->addChild('Body');
-            $body[0] = 'Invia questo messaggio per iniziare il gioco!';
+            $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+            $xml .= '<Message><Body>Invia questo messaggio per iniziare il gioco!</Body></Message>';
+            $xml .= '</Response>';
 
             Log::info('Risposta Twilio generata per messaggio di benvenuto', [
-                'response' => $response->asXML()
+                'response' => $xml
             ]);
 
-            return response($response->asXML(), 200)
+            return response($xml, 200)
                 ->header('Content-Type', 'text/xml');
 
         } catch (\Exception $e) {
@@ -161,12 +156,11 @@ class TwilioController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-            $message = $response->addChild('Message');
-            $body = $message->addChild('Body');
-            $body[0] = 'Si è verificato un errore. Riprova più tardi.';
+            $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
+            $xml .= '<Message><Body>Si è verificato un errore. Riprova più tardi.</Body></Message>';
+            $xml .= '</Response>';
             
-            return response($response->asXML(), 200)
+            return response($xml, 200)
                 ->header('Content-Type', 'text/xml');
         }
     }
