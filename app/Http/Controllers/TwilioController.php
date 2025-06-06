@@ -63,56 +63,40 @@ class TwilioController extends Controller
                 'request' => $request->all()
             ]);
 
-            // Se è una richiesta POST, significa che è un messaggio in arrivo
             if ($request->isMethod('post')) {
                 Log::info('Richiesta POST rilevata');
                 
-                // Estrai il numero di telefono dalla richiesta Twilio
                 $phoneNumber = $request->input('From') ?? $request->input('phone_number');
                 $projectId = $request->input('project_id', 1);
                 $messageBody = $request->input('Body');
 
                 if (!$phoneNumber) {
-                    Log::error('Numero di telefono mancante nella richiesta Twilio', [
-                        'request_data' => $request->all()
-                    ]);
+                    Log::error('Numero di telefono mancante');
                     return $this->sendErrorResponse('Numero di telefono mancante');
                 }
 
-                // Assicurati che il numero di telefono abbia il prefisso whatsapp:
                 if (!str_starts_with($phoneNumber, 'whatsapp:')) {
                     $phoneNumber = 'whatsapp:' . $phoneNumber;
                 }
 
-                Log::info('Numero di telefono elaborato', ['phone_number' => $phoneNumber]);
-
-                // Se il messaggio è "Invia questo messaggio per iniziare il gioco!", resetta il progresso
                 if ($messageBody === 'Invia questo messaggio per iniziare il gioco!') {
                     Log::info('Messaggio iniziale rilevato, reset del progresso');
                     
-                    // Elimina qualsiasi progresso esistente
                     UserProgress::where('phone_number', $phoneNumber)
                         ->where('project_id', $projectId)
                         ->delete();
-                    
-                    Log::info('Progresso esistente eliminato');
 
-                    // Ottieni il progetto e la sua scena iniziale
                     $project = Project::find($projectId);
                     if (!$project) {
-                        Log::error('Progetto non trovato', ['project_id' => $projectId]);
                         return $this->sendErrorResponse('Progetto non trovato');
                     }
 
-                    // Ottieni la scena iniziale
                     $initialScene = Scene::find($project->initial_scene_id);
                     if (!$initialScene) {
-                        Log::error('Scena iniziale non trovata', ['initial_scene_id' => $project->initial_scene_id]);
                         return $this->sendErrorResponse('Scena iniziale non trovata');
                     }
 
-                    // Crea un nuovo progresso utente
-                    $userProgress = UserProgress::create([
+                    UserProgress::create([
                         'phone_number' => $phoneNumber,
                         'project_id' => $projectId,
                         'current_scene_id' => $initialScene->id,
@@ -121,129 +105,78 @@ class TwilioController extends Controller
                     ]);
 
                     try {
-                        // Prepara la risposta TwiML
                         $response = new MessagingResponse();
 
-                        // Aggiungi il messaggio HTML
-                        $message = $response->message(strip_tags($initialScene->entry_message));
-                        $message->setAttribute('format', 'html');
+                        // 1. Invia prima il messaggio testuale
+                        $textMessage = $response->message([
+                            'format' => 'html'
+                        ]);
+                        $textMessage->body(strip_tags($initialScene->entry_message));
 
-                        // Aggiungi la GIF se presente
+                        // 2. Invia la GIF (se presente) in un messaggio separato
                         if ($initialScene->media_gif_url) {
-                            $gifPath = str_replace('/storage/', '', $initialScene->media_gif_url);
-                            $gifUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $gifPath;
-                            $gifUrl = str_replace(' ', '%20', $gifUrl);
+                            $gifUrl = $this->prepareMediaUrl($initialScene->media_gif_url);
                             
-                            Log::info('Aggiunta GIF alla risposta', [
-                                'url' => $gifUrl,
-                                'original_path' => $initialScene->media_gif_url,
-                                'gif_path' => $gifPath
-                            ]);
-                            
-                            // Crea un nuovo messaggio per la GIF
                             $gifMessage = $response->message('');
                             $gifMessage->media($gifUrl);
+                            
+                            Log::info('GIF aggiunta', ['url' => $gifUrl]);
                         }
 
-                        // Aggiungi l'audio se presente
+                        // 3. Invia l'audio (se presente) in un messaggio separato
                         if ($initialScene->media_audio_url) {
-                            $audioPath = str_replace('/storage/', '', $initialScene->media_audio_url);
-                            $audioUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $audioPath;
-                            $audioUrl = str_replace(' ', '%20', $audioUrl);
+                            $audioUrl = $this->prepareMediaUrl($initialScene->media_audio_url);
                             
-                            Log::info('Aggiunto audio alla risposta', [
-                                'url' => $audioUrl,
-                                'original_path' => $initialScene->media_audio_url,
-                                'audio_path' => $audioPath
-                            ]);
-                            
-                            // Crea un nuovo messaggio per l'audio
                             $audioMessage = $response->message('');
                             $audioMessage->media($audioUrl);
+                            
+                            Log::info('Audio aggiunto', ['url' => $audioUrl]);
                         }
 
-                        $xml = $response->asXML();
-                        Log::info('Risposta TwiML generata', ['response' => $xml]);
-
-                        // Prepara la risposta con gli header necessari
-                        $response = response($xml, 200)
+                        return response($response)
                             ->header('Content-Type', 'text/xml')
-                            ->header('X-Twilio-Webhook-Response', 'true')
-                            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                            ->header('Pragma', 'no-cache')
-                            ->header('Expires', '0')
-                            ->header('X-Twilio-Webhook-Response-Type', 'twiml');
-
-                        Log::info('Risposta finale preparata con headers', [
-                            'headers' => $response->headers->all()
-                        ]);
-
-                        return $response;
+                            ->header('X-Twilio-Webhook-Response', 'true');
 
                     } catch (\Exception $e) {
-                        Log::error('Errore nella generazione della risposta TwiML', [
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
-                        ]);
+                        Log::error('Errore generazione TwiML', ['error' => $e->getMessage()]);
                         throw $e;
                     }
                 }
 
-                // Se non è il messaggio iniziale, passa a handleIncomingMessage
-                Log::info('Messaggio non iniziale, passaggio a handleIncomingMessage');
                 return $this->handleIncomingMessage($request);
             }
 
-            // Se è una richiesta GET, significa che è il messaggio iniziale
-            Log::info('Richiesta GET rilevata, invio messaggio iniziale');
+            // Gestione richiesta GET
             $response = new MessagingResponse();
             $response->message('Invia questo messaggio per iniziare il gioco!');
 
-            $xml = $response->asXML();
-
-            Log::info('Risposta Twilio generata per messaggio di benvenuto', [
-                'response' => $xml
-            ]);
-
-            $response = response($xml, 200)
+            return response($response)
                 ->header('Content-Type', 'text/xml');
-
-            // Aggiungi header per forzare l'invio immediato
-            $response->headers->set('X-Twilio-Webhook-Response', 'true');
-            $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
-            $response->headers->set('Pragma', 'no-cache');
-            $response->headers->set('Expires', '0');
-
-            // Aggiungi header per indicare che è una risposta TwiML
-            $response->headers->set('X-Twilio-Webhook-Response-Type', 'twiml');
-
-            return $response;
 
         } catch (\Exception $e) {
-            Log::error('Errore nell\'invio del messaggio di benvenuto', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            $response = new MessagingResponse();
-            $response->message('Si è verificato un errore. Riprova più tardi.');
-
-            $xml = $response->asXML();
-            
-            $response = response($xml, 200)
-                ->header('Content-Type', 'text/xml');
-
-            // Aggiungi header per forzare l'invio immediato
-            $response->headers->set('X-Twilio-Webhook-Response', 'true');
-            $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
-            $response->headers->set('Pragma', 'no-cache');
-            $response->headers->set('Expires', '0');
-
-            // Aggiungi header per indicare che è una risposta TwiML
-            $response->headers->set('X-Twilio-Webhook-Response-Type', 'twiml');
-
-            return $response;
+            Log::error('Errore in sendInitialMessage', ['error' => $e->getMessage()]);
+            return $this->sendErrorResponse('Si è verificato un errore. Riprova più tardi.');
         }
+    }
+
+    /**
+     * Prepara un URL media per Twilio
+     */
+    private function prepareMediaUrl($path)
+    {
+        // Rimuovi il prefisso /storage/ se presente
+        $cleanPath = str_replace('/storage/', '', $path);
+        
+        // Genera l'URL pubblico assoluto
+        $url = config('app.url') . '/storage/' . $cleanPath;
+        
+        // Codifica gli spazi e caratteri speciali
+        $url = str_replace(' ', '%20', $url);
+        
+        // Assicurati che sia HTTPS
+        $url = str_replace('http://', 'https://', $url);
+        
+        return $url;
     }
 
     /**
@@ -252,88 +185,60 @@ class TwilioController extends Controller
     public function handleIncomingMessage(Request $request)
     {
         try {
-            Log::info('Twilio incoming message received', [
-                'request' => $request->all(),
+            Log::info('Messaggio in arrivo', [
                 'from' => $request->input('From'),
-                'body' => $request->input('Body'),
-                'message_sid' => $request->input('MessageSid')
+                'body' => $request->input('Body')
             ]);
 
-            // Estrai il numero di telefono dalla richiesta Twilio
             $phoneNumber = $request->input('From');
             $projectId = $request->input('project_id', 1);
 
             if (!$phoneNumber) {
-                Log::error('Numero di telefono mancante nella richiesta Twilio');
+                Log::error('Numero di telefono mancante');
                 return $this->sendErrorResponse('Numero di telefono mancante');
             }
 
-            // Cerca il progresso dell'utente
             $userProgress = UserProgress::where('phone_number', $phoneNumber)
                 ->where('project_id', $projectId)
                 ->first();
-
-            Log::info('User progress trovato', ['user_progress' => $userProgress]);
 
             if (!$userProgress) {
                 Log::error('Progresso utente non trovato');
                 return $this->sendErrorResponse('Progresso utente non trovato');
             }
 
-            // Ottieni la scena corrente
             $currentScene = Scene::find($userProgress->current_scene_id);
             if (!$currentScene) {
-                Log::error('Scena corrente non trovata', ['scene_id' => $userProgress->current_scene_id]);
+                Log::error('Scena corrente non trovata');
                 return $this->sendErrorResponse('Scena corrente non trovata');
             }
 
-            Log::info('Scena corrente trovata', ['current_scene' => $currentScene]);
-
-            // Prepara la risposta
-            $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-
-            // Gestisci la scena in base al suo tipo
-            Log::info('Tipo di scena', ['scene_type' => $currentScene->type]);
+            $response = new MessagingResponse();
 
             switch ($currentScene->type) {
                 case 'intro':
-                    Log::info('Gestione scena intro');
                     $this->handleIntroScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 case 'investigation':
-                    Log::info('Gestione scena investigation');
                     $this->handleInvestigationScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 case 'puzzle':
-                    Log::info('Gestione scena puzzle');
                     $this->handlePuzzleScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 case 'final':
-                    Log::info('Gestione scena final');
                     $this->handleFinalScene($userProgress, $currentScene, $request->input('Body'), $response);
                     break;
                 default:
-                    Log::error('Tipo di scena non valido', ['type' => $currentScene->type]);
+                    Log::error('Tipo di scena non valido');
                     return $this->sendErrorResponse('Tipo di scena non valido');
             }
 
-            Log::info('Risposta Twilio generata', [
-                'response' => $response->asXML(),
-                'current_scene' => $userProgress->current_scene_id,
-                'next_scene' => $userProgress->next_scene_id,
-                'user_progress' => $userProgress->id
-            ]);
-
-            return response($response->asXML(), 200)
-                ->header('Content-Type', 'text/xml');
+            return response($response)
+                ->header('Content-Type', 'text/xml')
+                ->header('X-Twilio-Webhook-Response', 'true');
 
         } catch (\Exception $e) {
-            Log::error('Error processing Twilio message', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
-            ]);
-
+            Log::error('Errore in handleIncomingMessage', ['error' => $e->getMessage()]);
             return $this->sendErrorResponse('Si è verificato un errore. Riprova più tardi.');
         }
     }
@@ -343,72 +248,62 @@ class TwilioController extends Controller
      */
     private function handleIntroScene($userProgress, $scene, $message, $response)
     {
-        // Log dei messaggi per debug
-        Log::info('Confronto messaggi in handleIntroScene', [
-            'user_message' => $message,
-            'scene_message' => $scene->entry_message,
-            'stripped_user_message' => strip_tags($message),
-            'stripped_scene_message' => strip_tags($scene->entry_message)
-        ]);
-
-        // Se il messaggio dell'utente è uguale al messaggio della scena, procedi con la scena successiva
         if (trim(strip_tags($message)) === trim(strip_tags($scene->entry_message))) {
-            Log::info('Messaggi corrispondono, procedo alla scena successiva', [
-                'next_scene_id' => $scene->next_scene_id
-            ]);
-
-            // Se c'è una scena successiva, passa ad essa e mostra il suo messaggio
             if ($scene->next_scene_id) {
                 $nextScene = Scene::find($scene->next_scene_id);
                 if ($nextScene) {
-                    // Aggiorna il progresso
                     $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
                     
-                    // Aggiungi media se presente
+                    // 1. Messaggio testuale
+                    $textMessage = $response->message([
+                        'format' => 'html'
+                    ]);
+                    $textMessage->body(strip_tags($nextScene->entry_message));
+
+                    // 2. GIF (se presente)
                     if ($nextScene->media_gif_url) {
-                        $media = $response->addChild('Media');
-                        $media[0] = config('app.url') . $nextScene->media_gif_url;
-                    }
-                    if ($nextScene->media_audio_url) {
-                        $media = $response->addChild('Media');
-                        $media[0] = config('app.url') . $nextScene->media_audio_url;
+                        $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
+                        $gifMessage = $response->message('');
+                        $gifMessage->media($gifUrl);
+                        Log::info('GIF aggiunta', ['url' => $gifUrl]);
                     }
 
-                    // Aggiungi il messaggio della nuova scena
-                    $message = $response->addChild('Message');
-                    $message->addAttribute('format', 'html');
-                    $body = $message->addChild('Body');
-                    $body[0] = $this->formatMessageForTwilio($nextScene->entry_message);
-                    
-                    Log::info('Scena successiva impostata', [
-                        'next_scene_id' => $nextScene->id,
-                        'next_scene_message' => $nextScene->entry_message
-                    ]);
+                    // 3. Audio (se presente)
+                    if ($nextScene->media_audio_url) {
+                        $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
+                        $audioMessage = $response->message('');
+                        $audioMessage->media($audioUrl);
+                        Log::info('Audio aggiunto', ['url' => $audioUrl]);
+                    }
                 }
             } else {
-                // Se non ci sono scene successive, mostra un messaggio di fine
-                $message = $response->addChild('Message');
-                $message->addAttribute('format', 'html');
-                $body = $message->addChild('Body');
-                $body[0] = '<p>Hai completato questa parte del gioco. Presto arriveranno nuove avventure!</p>';
-                Log::info('Nessuna scena successiva trovata');
+                $message = $response->message([
+                    'format' => 'html'
+                ]);
+                $message->body('<p>Hai completato questa parte del gioco. Presto arriveranno nuove avventure!</p>');
             }
         } else {
-            // Se il messaggio è diverso, ripeti il messaggio della scena corrente
+            // 1. Messaggio testuale
+            $textMessage = $response->message([
+                'format' => 'html'
+            ]);
+            $textMessage->body(strip_tags($scene->entry_message));
+
+            // 2. GIF (se presente)
             if ($scene->media_gif_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $scene->media_gif_url;
+                $gifUrl = $this->prepareMediaUrl($scene->media_gif_url);
+                $gifMessage = $response->message('');
+                $gifMessage->media($gifUrl);
+                Log::info('GIF aggiunta', ['url' => $gifUrl]);
             }
+
+            // 3. Audio (se presente)
             if ($scene->media_audio_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $scene->media_audio_url;
+                $audioUrl = $this->prepareMediaUrl($scene->media_audio_url);
+                $audioMessage = $response->message('');
+                $audioMessage->media($audioUrl);
+                Log::info('Audio aggiunto', ['url' => $audioUrl]);
             }
-            $message = $response->addChild('Message');
-            $message->addAttribute('format', 'html');
-            $body = $message->addChild('Body');
-            $body[0] = $this->formatMessageForTwilio($scene->entry_message);
-            
-            Log::info('Messaggi non corrispondono, ripeto la scena corrente');
         }
     }
 
@@ -417,64 +312,36 @@ class TwilioController extends Controller
      */
     private function handleInvestigationScene($userProgress, $scene, $message, $response)
     {
-        // Log delle scelte disponibili
-        Log::info('Scelte disponibili per la scena', [
-            'scene_id' => $scene->id,
-            'choices' => $scene->choices->toArray(),
-            'user_message' => $message
-        ]);
-
-        // Se il messaggio è una scelta valida
         $choice = $scene->choices()->where('label', $message)->first();
         
         if ($choice) {
-            Log::info('Scelta valida trovata', [
-                'choice' => $choice->toArray()
-            ]);
-
-            // Passa alla scena target
             $userProgress->update(['current_scene_id' => $choice->target_scene_id]);
-            
-            // Ottieni la nuova scena
             $nextScene = Scene::find($choice->target_scene_id);
             
-            // Aggiungi media se presente
+            // 1. Messaggio testuale
+            $textMessage = $response->message([
+                'format' => 'html'
+            ]);
+            $textMessage->body(strip_tags($nextScene->entry_message));
+
+            // 2. GIF (se presente)
             if ($nextScene->media_gif_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $nextScene->media_gif_url;
-            }
-            if ($nextScene->media_audio_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $nextScene->media_audio_url;
+                $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
+                $gifMessage = $response->message('');
+                $gifMessage->media($gifUrl);
+                Log::info('GIF aggiunta', ['url' => $gifUrl]);
             }
 
-            // Aggiungi il messaggio della nuova scena
-            $message = $response->addChild('Message');
-            $message->addAttribute('format', 'html');
-            $body = $message->addChild('Body');
-            $body[0] = $this->formatMessageForTwilio($nextScene->entry_message);
+            // 3. Audio (se presente)
+            if ($nextScene->media_audio_url) {
+                $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
+                $audioMessage = $response->message('');
+                $audioMessage->media($audioUrl);
+                Log::info('Audio aggiunto', ['url' => $audioUrl]);
+            }
         } else {
-            Log::info('Scelta non valida, mostro le opzioni disponibili');
-            
-            // Aggiungi media se presente
-            if ($scene->media_gif_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $scene->media_gif_url;
-            }
-            if ($scene->media_audio_url) {
-                $media = $response->addChild('Media');
-                $media[0] = config('app.url') . $scene->media_audio_url;
-            }
-            
-            // Costruisci il messaggio con le opzioni
-            $message = $response->addChild('Message');
-            $message->addAttribute('format', 'html');
-            $body = $message->addChild('Body');
-            
-            // Aggiungi il messaggio principale con la formattazione HTML
-            $messageText = $this->formatMessageForTwilio($scene->entry_message);
-            
-            // Aggiungi le opzioni disponibili
+            // 1. Messaggio testuale con opzioni
+            $messageText = strip_tags($scene->entry_message);
             if ($scene->choices->count() > 0) {
                 $messageText .= "\n\n<b>Opzioni disponibili:</b>\n";
                 foreach ($scene->choices as $index => $choice) {
@@ -482,12 +349,26 @@ class TwilioController extends Controller
                 }
             }
             
-            $body[0] = $messageText;
-            
-            Log::info('Messaggio di risposta generato', [
-                'message' => $messageText,
-                'choices' => $scene->choices->toArray()
+            $textMessage = $response->message([
+                'format' => 'html'
             ]);
+            $textMessage->body($messageText);
+
+            // 2. GIF (se presente)
+            if ($scene->media_gif_url) {
+                $gifUrl = $this->prepareMediaUrl($scene->media_gif_url);
+                $gifMessage = $response->message('');
+                $gifMessage->media($gifUrl);
+                Log::info('GIF aggiunta', ['url' => $gifUrl]);
+            }
+
+            // 3. Audio (se presente)
+            if ($scene->media_audio_url) {
+                $audioUrl = $this->prepareMediaUrl($scene->media_audio_url);
+                $audioMessage = $response->message('');
+                $audioMessage->media($audioUrl);
+                Log::info('Audio aggiunto', ['url' => $audioUrl]);
+            }
         }
     }
 
@@ -496,59 +377,50 @@ class TwilioController extends Controller
      */
     private function handlePuzzleScene($userProgress, $scene, $message, $response)
     {
-        // Verifica se la risposta è corretta
         if (strtolower($message) === strtolower($scene->correct_answer)) {
-            // Aggiungi l'elemento alla collezione se presente
             if ($scene->item_id) {
                 $userProgress->collected_items()->attach($scene->item_id, ['collected_at' => now()]);
             }
 
-            // Aggiungi il messaggio di successo
-            $message = $response->addChild('Message');
-            $message->addAttribute('format', 'html');
-            $body = $message->addChild('Body');
-            $body[0] = $this->formatMessageForTwilio($scene->success_message);
+            // 1. Messaggio di successo
+            $textMessage = $response->message([
+                'format' => 'html'
+            ]);
+            $textMessage->body(strip_tags($scene->success_message));
 
-            // Passa alla scena successiva se presente
             if ($scene->next_scene_id) {
                 $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
-                
-                // Ottieni la nuova scena
                 $nextScene = Scene::find($scene->next_scene_id);
+                
                 if ($nextScene) {
-                    // Aggiungi media se presente
+                    // 2. GIF (se presente)
                     if ($nextScene->media_gif_url) {
-                        $media = $response->addChild('Media');
-                        $media[0] = config('app.url') . $nextScene->media_gif_url;
-                    }
-                    if ($nextScene->media_audio_url) {
-                        $media = $response->addChild('Media');
-                        $media[0] = config('app.url') . $nextScene->media_audio_url;
+                        $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
+                        $gifMessage = $response->message('');
+                        $gifMessage->media($gifUrl);
+                        Log::info('GIF aggiunta', ['url' => $gifUrl]);
                     }
 
-                    // Aggiungi il messaggio della nuova scena
-                    $message = $response->addChild('Message');
-                    $message->addAttribute('format', 'html');
-                    $body = $message->addChild('Body');
-                    $body[0] = $this->formatMessageForTwilio($nextScene->entry_message);
+                    // 3. Audio (se presente)
+                    if ($nextScene->media_audio_url) {
+                        $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
+                        $audioMessage = $response->message('');
+                        $audioMessage->media($audioUrl);
+                        Log::info('Audio aggiunto', ['url' => $audioUrl]);
+                    }
                 }
             }
         } else {
-            // Decrementa i tentativi rimanenti
             $userProgress->decrement('attempts_remaining');
 
+            $textMessage = $response->message([
+                'format' => 'html'
+            ]);
+
             if ($userProgress->attempts_remaining <= 0) {
-                // Se non ci sono più tentativi, mostra il messaggio di fallimento
-                $message = $response->addChild('Message');
-                $message->addAttribute('format', 'html');
-                $body = $message->addChild('Body');
-                $body[0] = $this->formatMessageForTwilio($scene->failure_message);
+                $textMessage->body(strip_tags($scene->failure_message));
             } else {
-                // Altrimenti, mostra il messaggio di errore e i tentativi rimanenti
-                $message = $response->addChild('Message');
-                $message->addAttribute('format', 'html');
-                $body = $message->addChild('Body');
-                $body[0] = '<p>Risposta errata. <b>Tentativi rimanenti: ' . $userProgress->attempts_remaining . '</b></p>';
+                $textMessage->body('<p>Risposta errata. <b>Tentativi rimanenti: ' . $userProgress->attempts_remaining . '</b></p>');
             }
         }
     }
@@ -558,21 +430,27 @@ class TwilioController extends Controller
      */
     private function handleFinalScene($userProgress, $scene, $message, $response)
     {
-        // Aggiungi media se presente
+        // 1. Messaggio testuale
+        $textMessage = $response->message([
+            'format' => 'html'
+        ]);
+        $textMessage->body(strip_tags($scene->entry_message));
+
+        // 2. GIF (se presente)
         if ($scene->media_gif_url) {
-            $media = $response->addChild('Media');
-            $media[0] = config('app.url') . $scene->media_gif_url;
-        }
-        if ($scene->media_audio_url) {
-            $media = $response->addChild('Media');
-            $media[0] = config('app.url') . $scene->media_audio_url;
+            $gifUrl = $this->prepareMediaUrl($scene->media_gif_url);
+            $gifMessage = $response->message('');
+            $gifMessage->media($gifUrl);
+            Log::info('GIF aggiunta', ['url' => $gifUrl]);
         }
 
-        // Aggiungi il messaggio finale
-        $message = $response->addChild('Message');
-        $message->addAttribute('format', 'html');
-        $body = $message->addChild('Body');
-        $body[0] = $this->formatMessageForTwilio($scene->entry_message);
+        // 3. Audio (se presente)
+        if ($scene->media_audio_url) {
+            $audioUrl = $this->prepareMediaUrl($scene->media_audio_url);
+            $audioMessage = $response->message('');
+            $audioMessage->media($audioUrl);
+            Log::info('Audio aggiunto', ['url' => $audioUrl]);
+        }
     }
 
     /**
@@ -580,13 +458,14 @@ class TwilioController extends Controller
      */
     private function sendErrorResponse($message)
     {
-        $response = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-        $message = $response->addChild('Message');
-        $message->addAttribute('format', 'html');
-        $body = $message->addChild('Body');
-        $body[0] = '<p>' . $message . '</p>';
+        $response = new MessagingResponse();
+        $message = $response->message([
+            'format' => 'html'
+        ]);
+        $message->body('<p>' . $message . '</p>');
         
-        return response($response->asXML(), 200)
-            ->header('Content-Type', 'text/xml');
+        return response($response)
+            ->header('Content-Type', 'text/xml')
+            ->header('X-Twilio-Webhook-Response', 'true');
     }
 }
