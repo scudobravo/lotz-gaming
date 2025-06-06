@@ -129,8 +129,17 @@ class TwilioController extends Controller
                         'message' => $initialScene->entry_message
                     ]);
 
-                    return response($xml, 200)
+                    // Invia la risposta
+                    $response = response($xml, 200)
                         ->header('Content-Type', 'text/xml');
+
+                    // Aggiungi header per forzare l'invio immediato
+                    $response->headers->set('X-Twilio-Webhook-Response', 'true');
+                    $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+                    $response->headers->set('Pragma', 'no-cache');
+                    $response->headers->set('Expires', '0');
+
+                    return $response;
                 }
 
                 // Se non è il messaggio iniziale, passa a handleIncomingMessage
@@ -148,8 +157,16 @@ class TwilioController extends Controller
                 'response' => $xml
             ]);
 
-            return response($xml, 200)
+            $response = response($xml, 200)
                 ->header('Content-Type', 'text/xml');
+
+            // Aggiungi header per forzare l'invio immediato
+            $response->headers->set('X-Twilio-Webhook-Response', 'true');
+            $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+            $response->headers->set('Pragma', 'no-cache');
+            $response->headers->set('Expires', '0');
+
+            return $response;
 
         } catch (\Exception $e) {
             Log::error('Errore nell\'invio del messaggio di benvenuto', [
@@ -161,8 +178,16 @@ class TwilioController extends Controller
             $xml .= '<Message><Body>Si è verificato un errore. Riprova più tardi.</Body></Message>';
             $xml .= '</Response>';
             
-            return response($xml, 200)
+            $response = response($xml, 200)
                 ->header('Content-Type', 'text/xml');
+
+            // Aggiungi header per forzare l'invio immediato
+            $response->headers->set('X-Twilio-Webhook-Response', 'true');
+            $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+            $response->headers->set('Pragma', 'no-cache');
+            $response->headers->set('Expires', '0');
+
+            return $response;
         }
     }
 
