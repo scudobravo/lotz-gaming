@@ -70,6 +70,7 @@ class TwilioController extends Controller
                 // Estrai il numero di telefono dalla richiesta Twilio
                 $phoneNumber = $request->input('From') ?? $request->input('phone_number');
                 $projectId = $request->input('project_id', 1);
+                $messageBody = $request->input('Body');
 
                 if (!$phoneNumber) {
                     Log::error('Numero di telefono mancante nella richiesta Twilio', [
@@ -85,22 +86,16 @@ class TwilioController extends Controller
 
                 Log::info('Numero di telefono elaborato', ['phone_number' => $phoneNumber]);
 
-                // Cerca il progresso dell'utente
-                $userProgress = UserProgress::where('phone_number', $phoneNumber)
-                    ->where('project_id', $projectId)
-                    ->first();
-
-                Log::info('User progress trovato in sendInitialMessage', ['user_progress' => $userProgress]);
-
                 // Se il messaggio è "Invia questo messaggio per iniziare il gioco!", resetta il progresso
-                if ($request->input('Body') === 'Invia questo messaggio per iniziare il gioco!') {
+                if ($messageBody === 'Invia questo messaggio per iniziare il gioco!') {
                     Log::info('Messaggio iniziale rilevato, reset del progresso');
                     
-                    // Se esiste un progresso, eliminalo
-                    if ($userProgress) {
-                        $userProgress->delete();
-                        Log::info('Progresso esistente eliminato');
-                    }
+                    // Elimina qualsiasi progresso esistente
+                    UserProgress::where('phone_number', $phoneNumber)
+                        ->where('project_id', $projectId)
+                        ->delete();
+                    
+                    Log::info('Progresso esistente eliminato');
 
                     // Ottieni il progetto e la sua scena iniziale
                     $project = Project::find($projectId);
