@@ -107,25 +107,25 @@ class TwilioController extends Controller
                     try {
                         $response = new MessagingResponse();
 
-                        // 1. Invia prima il messaggio testuale
-                        $textMessage = $response->message(strip_tags($initialScene->entry_message));
-                        $textMessage->setAttribute('format', 'html');
+                        // Crea un singolo messaggio con testo e media
+                        $message = $response->message(strip_tags($initialScene->entry_message));
+                        $message->setAttribute('format', 'html');
 
-                        // 2. Invia la GIF (se presente) in un messaggio separato
+                        // Aggiungi la GIF se presente
                         if ($initialScene->media_gif_url) {
                             $gifUrl = $this->prepareMediaUrl($initialScene->media_gif_url);
-                            $gifMessage = $response->message('');
-                            $gifMessage->media($gifUrl);
+                            $message->media($gifUrl);
                             Log::info('GIF aggiunta', ['url' => $gifUrl]);
                         }
 
-                        // 3. Invia l'audio (se presente) in un messaggio separato
+                        // Aggiungi l'audio se presente
                         if ($initialScene->media_audio_url) {
                             $audioUrl = $this->prepareMediaUrl($initialScene->media_audio_url);
-                            $audioMessage = $response->message('');
-                            $audioMessage->media($audioUrl);
+                            $message->media($audioUrl);
                             Log::info('Audio aggiunto', ['url' => $audioUrl]);
                         }
+
+                        Log::info('Risposta TwiML generata', ['response' => $response->asXML()]);
 
                         return response($response)
                             ->header('Content-Type', 'text/xml')
