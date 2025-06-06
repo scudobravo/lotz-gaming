@@ -29,8 +29,13 @@ class TwilioController extends Controller
         // Rimuovi le virgolette non necessarie
         $message = str_replace('"', '', $message);
         
-        // Assicurati che il messaggio sia valido HTML
+        // Mantieni solo i tag HTML consentiti
         $message = strip_tags($message, '<p><em><strong><br><b><i>');
+        
+        // Assicurati che il messaggio sia valido HTML
+        if (!preg_match('/<[^>]*>/', $message)) {
+            $message = '<p>' . $message . '</p>';
+        }
         
         return $message;
     }
