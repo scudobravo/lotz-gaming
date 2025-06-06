@@ -135,10 +135,13 @@ class TwilioController extends Controller
                         // Invia la GIF se presente
                         if ($initialScene->media_gif_url) {
                             // Costruisci l'URL pubblico per la GIF
-                            $gifUrl = config('app.url') . '/storage/' . ltrim($initialScene->media_gif_url, '/');
+                            $gifPath = str_replace('/storage/', '', $initialScene->media_gif_url);
+                            $gifUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $gifPath;
+                            
                             Log::info('Tentativo di invio GIF', [
                                 'url' => $gifUrl,
-                                'original_path' => $initialScene->media_gif_url
+                                'original_path' => $initialScene->media_gif_url,
+                                'gif_path' => $gifPath
                             ]);
                             
                             // Verifica che l'URL sia accessibile
@@ -160,10 +163,13 @@ class TwilioController extends Controller
                         // Invia l'audio se presente
                         if ($initialScene->media_audio_url) {
                             // Costruisci l'URL pubblico per l'audio
-                            $audioUrl = config('app.url') . '/storage/' . ltrim($initialScene->media_audio_url, '/');
+                            $audioPath = str_replace('/storage/', '', $initialScene->media_audio_url);
+                            $audioUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $audioPath;
+                            
                             Log::info('Tentativo di invio audio', [
                                 'url' => $audioUrl,
-                                'original_path' => $initialScene->media_audio_url
+                                'original_path' => $initialScene->media_audio_url,
+                                'audio_path' => $audioPath
                             ]);
                             
                             // Verifica che l'URL sia accessibile
