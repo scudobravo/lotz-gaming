@@ -255,10 +255,8 @@ class TwilioController extends Controller
                     $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
                     
                     // 1. Messaggio testuale
-                    $textMessage = $response->message([
-                        'format' => 'html'
-                    ]);
-                    $textMessage->body(strip_tags($nextScene->entry_message));
+                    $textMessage = $response->message(strip_tags($nextScene->entry_message));
+                    $textMessage->setAttribute('format', 'html');
 
                     // 2. GIF (se presente)
                     if ($nextScene->media_gif_url) {
@@ -277,17 +275,13 @@ class TwilioController extends Controller
                     }
                 }
             } else {
-                $message = $response->message([
-                    'format' => 'html'
-                ]);
-                $message->body('<p>Hai completato questa parte del gioco. Presto arriveranno nuove avventure!</p>');
+                $message = $response->message('<p>Hai completato questa parte del gioco. Presto arriveranno nuove avventure!</p>');
+                $message->setAttribute('format', 'html');
             }
         } else {
             // 1. Messaggio testuale
-            $textMessage = $response->message([
-                'format' => 'html'
-            ]);
-            $textMessage->body(strip_tags($scene->entry_message));
+            $textMessage = $response->message(strip_tags($scene->entry_message));
+            $textMessage->setAttribute('format', 'html');
 
             // 2. GIF (se presente)
             if ($scene->media_gif_url) {
@@ -319,10 +313,8 @@ class TwilioController extends Controller
             $nextScene = Scene::find($choice->target_scene_id);
             
             // 1. Messaggio testuale
-            $textMessage = $response->message([
-                'format' => 'html'
-            ]);
-            $textMessage->body(strip_tags($nextScene->entry_message));
+            $textMessage = $response->message(strip_tags($nextScene->entry_message));
+            $textMessage->setAttribute('format', 'html');
 
             // 2. GIF (se presente)
             if ($nextScene->media_gif_url) {
@@ -349,10 +341,8 @@ class TwilioController extends Controller
                 }
             }
             
-            $textMessage = $response->message([
-                'format' => 'html'
-            ]);
-            $textMessage->body($messageText);
+            $textMessage = $response->message($messageText);
+            $textMessage->setAttribute('format', 'html');
 
             // 2. GIF (se presente)
             if ($scene->media_gif_url) {
@@ -383,10 +373,8 @@ class TwilioController extends Controller
             }
 
             // 1. Messaggio di successo
-            $textMessage = $response->message([
-                'format' => 'html'
-            ]);
-            $textMessage->body(strip_tags($scene->success_message));
+            $textMessage = $response->message(strip_tags($scene->success_message));
+            $textMessage->setAttribute('format', 'html');
 
             if ($scene->next_scene_id) {
                 $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
@@ -413,15 +401,12 @@ class TwilioController extends Controller
         } else {
             $userProgress->decrement('attempts_remaining');
 
-            $textMessage = $response->message([
-                'format' => 'html'
-            ]);
-
-            if ($userProgress->attempts_remaining <= 0) {
-                $textMessage->body(strip_tags($scene->failure_message));
-            } else {
-                $textMessage->body('<p>Risposta errata. <b>Tentativi rimanenti: ' . $userProgress->attempts_remaining . '</b></p>');
-            }
+            $textMessage = $response->message(
+                $userProgress->attempts_remaining <= 0 
+                    ? strip_tags($scene->failure_message)
+                    : '<p>Risposta errata. <b>Tentativi rimanenti: ' . $userProgress->attempts_remaining . '</b></p>'
+            );
+            $textMessage->setAttribute('format', 'html');
         }
     }
 
@@ -431,10 +416,8 @@ class TwilioController extends Controller
     private function handleFinalScene($userProgress, $scene, $message, $response)
     {
         // 1. Messaggio testuale
-        $textMessage = $response->message([
-            'format' => 'html'
-        ]);
-        $textMessage->body(strip_tags($scene->entry_message));
+        $textMessage = $response->message(strip_tags($scene->entry_message));
+        $textMessage->setAttribute('format', 'html');
 
         // 2. GIF (se presente)
         if ($scene->media_gif_url) {
@@ -459,10 +442,8 @@ class TwilioController extends Controller
     private function sendErrorResponse($message)
     {
         $response = new MessagingResponse();
-        $message = $response->message([
-            'format' => 'html'
-        ]);
-        $message->body('<p>' . $message . '</p>');
+        $message = $response->message('<p>' . $message . '</p>');
+        $message->setAttribute('format', 'html');
         
         return response($response)
             ->header('Content-Type', 'text/xml')
