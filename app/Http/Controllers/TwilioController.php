@@ -53,6 +53,34 @@ class TwilioController extends Controller
     }
 
     /**
+     * Prepara un URL media per Twilio
+     */
+    private function prepareMediaUrl($path)
+    {
+        $cleanPath = str_replace('/storage/', '', $path);
+        $url = str_replace('http://', 'https://', config('app.url') . '/storage/' . $cleanPath);
+        $url = str_replace(' ', '%20', $url);
+        
+        // Verifica estensione file
+        $extension = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
+        
+        $validMediaTypes = [
+            'images' => ['jpg', 'jpeg', 'png', 'mp4'], // MP4 invece di GIF
+            'audio' => ['mp3', 'ogg', 'amr', 'wav']
+        ];
+        
+        if (!in_array($extension, array_merge($validMediaTypes['images'], $validMediaTypes['audio']))) {
+            Log::error('Formato media non supportato', [
+                'path' => $path,
+                'extension' => $extension
+            ]);
+            throw new \Exception("Formato file non supportato: .$extension");
+        }
+        
+        return $url;
+    }
+
+    /**
      * Invia il messaggio iniziale a un utente
      */
     public function sendInitialMessage(Request $request)
@@ -115,7 +143,7 @@ class TwilioController extends Controller
                         if ($initialScene->media_gif_url) {
                             $gifUrl = $this->prepareMediaUrl($initialScene->media_gif_url);
                             $gifMessage = $response->message('');
-                            $gifMessage->media($gifUrl);
+                            $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
                             Log::info('GIF aggiunta', ['url' => $gifUrl]);
                         }
 
@@ -123,7 +151,7 @@ class TwilioController extends Controller
                         if ($initialScene->media_audio_url) {
                             $audioUrl = $this->prepareMediaUrl($initialScene->media_audio_url);
                             $audioMessage = $response->message('');
-                            $audioMessage->media($audioUrl);
+                            $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                             Log::info('Audio aggiunto', ['url' => $audioUrl]);
                         }
 
@@ -155,26 +183,6 @@ class TwilioController extends Controller
             Log::error('Errore in sendInitialMessage', ['error' => $e->getMessage()]);
             return $this->sendErrorResponse('Si è verificato un errore. Riprova più tardi.');
         }
-    }
-
-    /**
-     * Prepara un URL media per Twilio
-     */
-    private function prepareMediaUrl($path)
-    {
-        // Rimuovi il prefisso /storage/ se presente
-        $cleanPath = str_replace('/storage/', '', $path);
-        
-        // Genera l'URL pubblico assoluto
-        $url = config('app.url') . '/storage/' . $cleanPath;
-        
-        // Codifica gli spazi e caratteri speciali
-        $url = str_replace(' ', '%20', $url);
-        
-        // Assicurati che sia HTTPS
-        $url = str_replace('http://', 'https://', $url);
-        
-        return $url;
     }
 
     /**
@@ -260,7 +268,7 @@ class TwilioController extends Controller
                     if ($nextScene->media_gif_url) {
                         $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
                         $gifMessage = $response->message('');
-                        $gifMessage->media($gifUrl);
+                        $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
                         Log::info('GIF aggiunta', ['url' => $gifUrl]);
                     }
 
@@ -268,7 +276,7 @@ class TwilioController extends Controller
                     if ($nextScene->media_audio_url) {
                         $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
                         $audioMessage = $response->message('');
-                        $audioMessage->media($audioUrl);
+                        $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                         Log::info('Audio aggiunto', ['url' => $audioUrl]);
                     }
                 }
@@ -285,7 +293,7 @@ class TwilioController extends Controller
             if ($scene->media_gif_url) {
                 $gifUrl = $this->prepareMediaUrl($scene->media_gif_url);
                 $gifMessage = $response->message('');
-                $gifMessage->media($gifUrl);
+                $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
                 Log::info('GIF aggiunta', ['url' => $gifUrl]);
             }
 
@@ -293,7 +301,7 @@ class TwilioController extends Controller
             if ($scene->media_audio_url) {
                 $audioUrl = $this->prepareMediaUrl($scene->media_audio_url);
                 $audioMessage = $response->message('');
-                $audioMessage->media($audioUrl);
+                $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                 Log::info('Audio aggiunto', ['url' => $audioUrl]);
             }
         }
@@ -318,7 +326,7 @@ class TwilioController extends Controller
             if ($nextScene->media_gif_url) {
                 $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
                 $gifMessage = $response->message('');
-                $gifMessage->media($gifUrl);
+                $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
                 Log::info('GIF aggiunta', ['url' => $gifUrl]);
             }
 
@@ -326,7 +334,7 @@ class TwilioController extends Controller
             if ($nextScene->media_audio_url) {
                 $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
                 $audioMessage = $response->message('');
-                $audioMessage->media($audioUrl);
+                $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                 Log::info('Audio aggiunto', ['url' => $audioUrl]);
             }
         } else {
@@ -346,7 +354,7 @@ class TwilioController extends Controller
             if ($scene->media_gif_url) {
                 $gifUrl = $this->prepareMediaUrl($scene->media_gif_url);
                 $gifMessage = $response->message('');
-                $gifMessage->media($gifUrl);
+                $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
                 Log::info('GIF aggiunta', ['url' => $gifUrl]);
             }
 
@@ -354,7 +362,7 @@ class TwilioController extends Controller
             if ($scene->media_audio_url) {
                 $audioUrl = $this->prepareMediaUrl($scene->media_audio_url);
                 $audioMessage = $response->message('');
-                $audioMessage->media($audioUrl);
+                $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                 Log::info('Audio aggiunto', ['url' => $audioUrl]);
             }
         }
@@ -383,7 +391,7 @@ class TwilioController extends Controller
                     if ($nextScene->media_gif_url) {
                         $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
                         $gifMessage = $response->message('');
-                        $gifMessage->media($gifUrl);
+                        $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
                         Log::info('GIF aggiunta', ['url' => $gifUrl]);
                     }
 
@@ -391,7 +399,7 @@ class TwilioController extends Controller
                     if ($nextScene->media_audio_url) {
                         $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
                         $audioMessage = $response->message('');
-                        $audioMessage->media($audioUrl);
+                        $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                         Log::info('Audio aggiunto', ['url' => $audioUrl]);
                     }
                 }
@@ -421,7 +429,7 @@ class TwilioController extends Controller
         if ($scene->media_gif_url) {
             $gifUrl = $this->prepareMediaUrl($scene->media_gif_url);
             $gifMessage = $response->message('');
-            $gifMessage->media($gifUrl);
+            $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
             Log::info('GIF aggiunta', ['url' => $gifUrl]);
         }
 
@@ -429,7 +437,7 @@ class TwilioController extends Controller
         if ($scene->media_audio_url) {
             $audioUrl = $this->prepareMediaUrl($scene->media_audio_url);
             $audioMessage = $response->message('');
-            $audioMessage->media($audioUrl);
+            $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
             Log::info('Audio aggiunto', ['url' => $audioUrl]);
         }
     }

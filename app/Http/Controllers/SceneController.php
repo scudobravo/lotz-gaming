@@ -74,14 +74,14 @@ class SceneController extends Controller
                 'type' => 'required|in:intro,investigation,puzzle,final',
                 'metadata' => 'nullable|json',
                 'project_id' => 'required|exists:projects,id',
-                'media_gif' => 'nullable|image|mimes:gif,jpg,jpeg,png|max:2048',
-                'media_audio' => 'nullable|file|mimes:mp3,wav|max:10240',
+                'media_gif' => 'nullable|file|mimes:mp4,jpg,jpeg,png|max:16384',
+                'media_audio' => 'nullable|file|mimes:mp3,wav|max:16384',
                 'next_scene_id' => 'nullable|exists:scenes,id'
             ]);
 
             DB::beginTransaction();
 
-            // Gestione del file GIF
+            // Gestione del file media (GIF/Video)
             if ($request->hasFile('media_gif')) {
                 $file = $request->file('media_gif');
                 
@@ -89,7 +89,7 @@ class SceneController extends Controller
                     throw new \Exception('File non valido: ' . $file->getErrorMessage());
                 }
 
-                Log::info('File GIF ricevuto', [
+                Log::info('File media ricevuto', [
                     'name' => $file->getClientOriginalName(),
                     'size' => $file->getSize(),
                     'mime' => $file->getMimeType(),
@@ -100,7 +100,7 @@ class SceneController extends Controller
                 ]);
 
                 $fileName = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('scenes/gifs', $fileName, 'public');
+                $path = $file->storeAs('scenes/media', $fileName, 'public');
                 
                 if (!$path) {
                     throw new \Exception('Impossibile salvare il file');
@@ -109,7 +109,7 @@ class SceneController extends Controller
                 $validated['media_gif'] = $path;
                 $validated['media_gif_url'] = '/storage/' . $path;
 
-                Log::info('GIF salvata con successo', [
+                Log::info('Media salvato con successo', [
                     'path' => $path,
                     'url' => '/storage/' . $path,
                     'full_path' => Storage::disk('public')->path($path)
@@ -225,8 +225,8 @@ class SceneController extends Controller
                 'title' => 'required|string|max:255',
                 'type' => 'required|in:intro,investigation,puzzle,final',
                 'entry_message' => 'required|string',
-                'media_gif' => 'nullable|file|mimes:gif|max:10240',
-                'media_audio' => 'nullable|file|mimes:mp3,wav|max:10240',
+                'media_gif' => 'nullable|file|mimes:mp4,jpg,jpeg,png|max:16384',
+                'media_audio' => 'nullable|file|mimes:mp3,wav|max:16384',
                 'puzzle_question' => 'nullable|string',
                 'correct_answer' => 'nullable|string',
                 'success_message' => 'nullable|string',
@@ -243,24 +243,24 @@ class SceneController extends Controller
                 'validated_data' => $validated
             ]);
 
-            // Gestione del file GIF
+            // Gestione del file media (GIF/Video)
             if ($request->hasFile('media_gif')) {
                 $file = $request->file('media_gif');
                 
                 if (!$file->isValid()) {
-                    throw new \Exception('File GIF non valido: ' . $file->getErrorMessage());
+                    throw new \Exception('File media non valido: ' . $file->getErrorMessage());
                 }
 
-                // Elimina il vecchio GIF se esiste
+                // Elimina il vecchio media se esiste
                 if ($scene->media_gif && Storage::disk('public')->exists($scene->media_gif)) {
                     Storage::disk('public')->delete($scene->media_gif);
                 }
 
                 $fileName = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('scenes/gifs', $fileName, 'public');
+                $path = $file->storeAs('scenes/media', $fileName, 'public');
                 
                 if (!$path) {
-                    throw new \Exception('Impossibile salvare il file GIF');
+                    throw new \Exception('Impossibile salvare il file media');
                 }
                 
                 $validated['media_gif'] = $path;

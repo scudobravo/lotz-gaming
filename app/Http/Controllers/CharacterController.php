@@ -53,7 +53,7 @@ class CharacterController extends Controller
                 'description' => $validated['description']
             ]);
 
-            // Gestione del file GIF
+            // Gestione del file media
             if ($request->hasFile('gif')) {
                 $file = $request->file('gif');
                 
@@ -63,10 +63,10 @@ class CharacterController extends Controller
 
                 // Validazione specifica per il file
                 $request->validate([
-                    'gif' => 'required|file|mimes:gif|max:5120'
+                    'gif' => 'required|file|mimes:mp4,jpg,jpeg,png|max:16384'
                 ]);
 
-                Log::info('File GIF ricevuto', [
+                Log::info('File media ricevuto', [
                     'name' => $file->getClientOriginalName(),
                     'size' => $file->getSize(),
                     'mime' => $file->getMimeType(),
@@ -80,7 +80,7 @@ class CharacterController extends Controller
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 
                 // Salva il file usando storeAs
-                $path = $file->storeAs('characters/gifs', $fileName, 'public');
+                $path = $file->storeAs('characters/media', $fileName, 'public');
                 
                 if (!$path) {
                     throw new \Exception('Impossibile salvare il file');
@@ -92,7 +92,7 @@ class CharacterController extends Controller
                     'gif_url' => '/storage/' . $path
                 ]);
 
-                Log::info('GIF salvata con successo', [
+                Log::info('Media salvato con successo', [
                     'path' => $path,
                     'url' => '/storage/' . $path,
                     'full_path' => Storage::disk('public')->path($path)
@@ -109,7 +109,7 @@ class CharacterController extends Controller
 
                 // Validazione specifica per il file audio
                 $request->validate([
-                    'audio' => 'required|file|mimes:mp3,wav|max:30720'
+                    'audio' => 'required|file|mimes:mp3,wav|max:16384'
                 ]);
 
                 // Genera un nome unico per il file
@@ -194,7 +194,7 @@ class CharacterController extends Controller
                 'description' => $validated['description']
             ]);
 
-            // Gestione del file GIF
+            // Gestione del file media
             if ($request->hasFile('gif')) {
                 $file = $request->file('gif');
                 
@@ -204,10 +204,10 @@ class CharacterController extends Controller
 
                 // Validazione specifica per il file
                 $request->validate([
-                    'gif' => 'required|file|mimes:gif|max:5120'
+                    'gif' => 'required|file|mimes:mp4,jpg,jpeg,png|max:16384'
                 ]);
 
-                Log::info('File GIF ricevuto', [
+                Log::info('File media ricevuto', [
                     'name' => $file->getClientOriginalName(),
                     'size' => $file->getSize(),
                     'mime' => $file->getMimeType(),
@@ -217,7 +217,7 @@ class CharacterController extends Controller
                     'error_message' => $file->getErrorMessage()
                 ]);
 
-                // Elimina la vecchia GIF se esiste
+                // Elimina il vecchio media se esiste
                 if ($character->gif_path && Storage::disk('public')->exists($character->gif_path)) {
                     Storage::disk('public')->delete($character->gif_path);
                 }
@@ -226,7 +226,7 @@ class CharacterController extends Controller
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 
                 // Salva il file usando storeAs
-                $path = $file->storeAs('characters/gifs', $fileName, 'public');
+                $path = $file->storeAs('characters/media', $fileName, 'public');
                 
                 if (!$path) {
                     throw new \Exception('Impossibile salvare il file');
@@ -238,13 +238,13 @@ class CharacterController extends Controller
                     'gif_url' => '/storage/' . $path
                 ]);
 
-                Log::info('GIF salvata con successo', [
+                Log::info('Media salvato con successo', [
                     'path' => $path,
                     'url' => '/storage/' . $path,
                     'full_path' => Storage::disk('public')->path($path)
                 ]);
             } else {
-                Log::info('Nessun file GIF presente nella richiesta');
+                Log::info('Nessun file media presente nella richiesta');
             }
 
             // Gestione dei progetti
