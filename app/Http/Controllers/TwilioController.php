@@ -107,6 +107,9 @@ class TwilioController extends Controller
                     // Costruisci la risposta XML
                     $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
                     
+                    // Aggiungi il messaggio formattato in HTML
+                    $xml .= '<Message format="html"><Body>' . $initialScene->entry_message . '</Body></Message>';
+                    
                     // Aggiungi media se presente
                     if ($initialScene->media_gif_url) {
                         $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_gif_url . '</Media></Message>';
@@ -116,9 +119,7 @@ class TwilioController extends Controller
                         $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_audio_url . '</Media></Message>';
                         Log::info('Aggiunto media audio', ['url' => $initialScene->media_audio_url]);
                     }
-
-                    // Aggiungi il messaggio formattato in HTML
-                    $xml .= '<Message format="html"><Body>' . $initialScene->entry_message . '</Body></Message>';
+                    
                     $xml .= '</Response>';
 
                     Log::info('Risposta iniziale inviata', [
