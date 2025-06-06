@@ -133,11 +133,11 @@ class TwilioController extends Controller
                     
                     // Aggiungi media se presente
                     if ($initialScene->media_gif_url) {
-                        $response->message('', ['mediaUrl' => [config('app.url') . $initialScene->media_gif_url]]);
+                        $response->message('', ['mediaUrl' => config('app.url') . $initialScene->media_gif_url]);
                         Log::info('Aggiunto media GIF', ['url' => $initialScene->media_gif_url]);
                     }
                     if ($initialScene->media_audio_url) {
-                        $response->message('', ['mediaUrl' => [config('app.url') . $initialScene->media_audio_url]]);
+                        $response->message('', ['mediaUrl' => config('app.url') . $initialScene->media_audio_url]);
                         Log::info('Aggiunto media audio', ['url' => $initialScene->media_audio_url]);
                     }
 
