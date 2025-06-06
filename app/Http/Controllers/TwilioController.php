@@ -126,7 +126,7 @@ class TwilioController extends Controller
                             $phoneNumber,
                             [
                                 'from' => config('services.twilio.from'),
-                                'body' => $initialScene->entry_message,
+                                'body' => strip_tags($initialScene->entry_message),
                                 'format' => 'html'
                             ]
                         );
@@ -134,26 +134,32 @@ class TwilioController extends Controller
 
                         // Invia la GIF se presente
                         if ($initialScene->media_gif_url) {
+                            $gifUrl = config('app.url') . $initialScene->media_gif_url;
+                            Log::info('Tentativo di invio GIF', ['url' => $gifUrl]);
+                            
                             $this->twilioClient->messages->create(
                                 $phoneNumber,
                                 [
                                     'from' => config('services.twilio.from'),
-                                    'mediaUrl' => [config('app.url') . $initialScene->media_gif_url]
+                                    'mediaUrl' => [$gifUrl]
                                 ]
                             );
-                            Log::info('GIF inviata', ['url' => $initialScene->media_gif_url]);
+                            Log::info('GIF inviata', ['url' => $gifUrl]);
                         }
 
                         // Invia l'audio se presente
                         if ($initialScene->media_audio_url) {
+                            $audioUrl = config('app.url') . $initialScene->media_audio_url;
+                            Log::info('Tentativo di invio audio', ['url' => $audioUrl]);
+                            
                             $this->twilioClient->messages->create(
                                 $phoneNumber,
                                 [
                                     'from' => config('services.twilio.from'),
-                                    'mediaUrl' => [config('app.url') . $initialScene->media_audio_url]
+                                    'mediaUrl' => [$audioUrl]
                                 ]
                             );
-                            Log::info('Audio inviato', ['url' => $initialScene->media_audio_url]);
+                            Log::info('Audio inviato', ['url' => $audioUrl]);
                         }
 
                         // Invia una risposta vuota per Twilio
