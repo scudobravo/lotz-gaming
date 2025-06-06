@@ -139,6 +139,9 @@ class TwilioController extends Controller
                     $response->headers->set('Pragma', 'no-cache');
                     $response->headers->set('Expires', '0');
 
+                    // Aggiungi header per indicare che è una risposta TwiML
+                    $response->headers->set('X-Twilio-Webhook-Response-Type', 'twiml');
+
                     return $response;
                 }
 
@@ -166,6 +169,9 @@ class TwilioController extends Controller
             $response->headers->set('Pragma', 'no-cache');
             $response->headers->set('Expires', '0');
 
+            // Aggiungi header per indicare che è una risposta TwiML
+            $response->headers->set('X-Twilio-Webhook-Response-Type', 'twiml');
+
             return $response;
 
         } catch (\Exception $e) {
@@ -186,6 +192,9 @@ class TwilioController extends Controller
             $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
             $response->headers->set('Pragma', 'no-cache');
             $response->headers->set('Expires', '0');
+
+            // Aggiungi header per indicare che è una risposta TwiML
+            $response->headers->set('X-Twilio-Webhook-Response-Type', 'twiml');
 
             return $response;
         }
