@@ -140,7 +140,9 @@ class TwilioController extends Controller
                                 'gif_path' => $gifPath
                             ]);
                             
-                            $media = $message->media($gifUrl);
+                            // Crea un nuovo messaggio per la GIF
+                            $gifMessage = $response->message('');
+                            $gifMessage->media($gifUrl);
                         }
 
                         // Aggiungi l'audio se presente
@@ -155,7 +157,9 @@ class TwilioController extends Controller
                                 'audio_path' => $audioPath
                             ]);
                             
-                            $media = $message->media($audioUrl);
+                            // Crea un nuovo messaggio per l'audio
+                            $audioMessage = $response->message('');
+                            $audioMessage->media($audioUrl);
                         }
 
                         $xml = $response->asXML();
