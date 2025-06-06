@@ -139,43 +139,6 @@ class TwilioController extends Controller
                     $response->headers->set('Pragma', 'no-cache');
                     $response->headers->set('Expires', '0');
 
-                    // Invia il messaggio HTML
-                    $twilio = new \Twilio\Rest\Client(
-                        config('services.twilio.sid'),
-                        config('services.twilio.token')
-                    );
-
-                    $twilio->messages->create(
-                        $phoneNumber,
-                        [
-                            'from' => config('services.twilio.from'),
-                            'body' => $initialScene->entry_message,
-                            'format' => 'html'
-                        ]
-                    );
-
-                    // Invia la GIF se presente
-                    if ($initialScene->media_gif_url) {
-                        $twilio->messages->create(
-                            $phoneNumber,
-                            [
-                                'from' => config('services.twilio.from'),
-                                'mediaUrl' => [config('app.url') . $initialScene->media_gif_url]
-                            ]
-                        );
-                    }
-
-                    // Invia l'audio se presente
-                    if ($initialScene->media_audio_url) {
-                        $twilio->messages->create(
-                            $phoneNumber,
-                            [
-                                'from' => config('services.twilio.from'),
-                                'mediaUrl' => [config('app.url') . $initialScene->media_audio_url]
-                            ]
-                        );
-                    }
-
                     return $response;
                 }
 
