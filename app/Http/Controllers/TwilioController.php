@@ -121,93 +121,51 @@ class TwilioController extends Controller
                     ]);
 
                     try {
-                        // Invia il messaggio HTML
-                        $this->twilioClient->messages->create(
-                            $phoneNumber,
-                            [
-                                'from' => config('services.twilio.from'),
-                                'body' => strip_tags($initialScene->entry_message),
-                                'format' => 'html'
-                            ]
-                        );
-                        Log::info('Messaggio HTML inviato');
+                        // Prepara la risposta TwiML
+                        $response = new MessagingResponse();
 
-                        // Attendi 2 secondi prima di inviare la GIF
-                        sleep(2);
+                        // Aggiungi il messaggio HTML
+                        $message = $response->message(strip_tags($initialScene->entry_message));
+                        $message->setAttribute('format', 'html');
 
-                        // Invia la GIF se presente
+                        // Aggiungi la GIF se presente
                         if ($initialScene->media_gif_url) {
-                            // Costruisci l'URL pubblico per la GIF
                             $gifPath = str_replace('/storage/', '', $initialScene->media_gif_url);
                             $gifUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $gifPath;
-                            
-                            // Codifica l'URL per gestire spazi e caratteri speciali
                             $gifUrl = str_replace(' ', '%20', $gifUrl);
                             
-                            Log::info('Tentativo di invio GIF', [
+                            Log::info('Aggiunta GIF alla risposta', [
                                 'url' => $gifUrl,
                                 'original_path' => $initialScene->media_gif_url,
                                 'gif_path' => $gifPath
                             ]);
                             
-                            try {
-                                $this->twilioClient->messages->create(
-                                    $phoneNumber,
-                                    [
-                                        'from' => config('services.twilio.from'),
-                                        'mediaUrl' => [$gifUrl]
-                                    ]
-                                );
-                                Log::info('GIF inviata con successo');
-                            } catch (\Exception $e) {
-                                Log::error('Errore nell\'invio della GIF', [
-                                    'error' => $e->getMessage(),
-                                    'url' => $gifUrl
-                                ]);
-                            }
+                            $media = $message->media($gifUrl);
                         }
 
-                        // Attendi 2 secondi prima di inviare l'audio
-                        sleep(2);
-
-                        // Invia l'audio se presente
+                        // Aggiungi l'audio se presente
                         if ($initialScene->media_audio_url) {
-                            // Costruisci l'URL pubblico per l'audio
                             $audioPath = str_replace('/storage/', '', $initialScene->media_audio_url);
                             $audioUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $audioPath;
-                            
-                            // Codifica l'URL per gestire spazi e caratteri speciali
                             $audioUrl = str_replace(' ', '%20', $audioUrl);
                             
-                            Log::info('Tentativo di invio audio', [
+                            Log::info('Aggiunto audio alla risposta', [
                                 'url' => $audioUrl,
                                 'original_path' => $initialScene->media_audio_url,
                                 'audio_path' => $audioPath
                             ]);
                             
-                            try {
-                                $this->twilioClient->messages->create(
-                                    $phoneNumber,
-                                    [
-                                        'from' => config('services.twilio.from'),
-                                        'mediaUrl' => [$audioUrl]
-                                    ]
-                                );
-                                Log::info('Audio inviato con successo');
-                            } catch (\Exception $e) {
-                                Log::error('Errore nell\'invio dell\'audio', [
-                                    'error' => $e->getMessage(),
-                                    'url' => $audioUrl
-                                ]);
-                            }
+                            $media = $message->media($audioUrl);
                         }
 
-                        // Invia una risposta vuota per Twilio
-                        return response('', 200)
+                        $xml = $response->asXML();
+                        Log::info('Risposta TwiML generata', ['response' => $xml]);
+
+                        return response($xml, 200)
                             ->header('Content-Type', 'text/xml');
 
                     } catch (\Exception $e) {
-                        Log::error('Errore nell\'invio dei messaggi Twilio', [
+                        Log::error('Errore nella generazione della risposta TwiML', [
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString()
                         ]);
