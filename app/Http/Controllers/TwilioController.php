@@ -144,9 +144,7 @@ class TwilioController extends Controller
                                 'gif_path' => $gifPath
                             ]);
                             
-                            // Verifica che l'URL sia accessibile
-                            $headers = get_headers($gifUrl);
-                            if ($headers && strpos($headers[0], '200') !== false) {
+                            try {
                                 $this->twilioClient->messages->create(
                                     $phoneNumber,
                                     [
@@ -155,8 +153,11 @@ class TwilioController extends Controller
                                     ]
                                 );
                                 Log::info('GIF inviata con successo');
-                            } else {
-                                Log::error('URL GIF non accessibile', ['url' => $gifUrl]);
+                            } catch (\Exception $e) {
+                                Log::error('Errore nell\'invio della GIF', [
+                                    'error' => $e->getMessage(),
+                                    'url' => $gifUrl
+                                ]);
                             }
                         }
 
@@ -172,9 +173,7 @@ class TwilioController extends Controller
                                 'audio_path' => $audioPath
                             ]);
                             
-                            // Verifica che l'URL sia accessibile
-                            $headers = get_headers($audioUrl);
-                            if ($headers && strpos($headers[0], '200') !== false) {
+                            try {
                                 $this->twilioClient->messages->create(
                                     $phoneNumber,
                                     [
@@ -183,8 +182,11 @@ class TwilioController extends Controller
                                     ]
                                 );
                                 Log::info('Audio inviato con successo');
-                            } else {
-                                Log::error('URL audio non accessibile', ['url' => $audioUrl]);
+                            } catch (\Exception $e) {
+                                Log::error('Errore nell\'invio dell\'audio', [
+                                    'error' => $e->getMessage(),
+                                    'url' => $audioUrl
+                                ]);
                             }
                         }
 
