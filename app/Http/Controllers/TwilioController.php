@@ -120,45 +120,53 @@ class TwilioController extends Controller
                         'last_interaction_at' => now()
                     ]);
 
-                    // Crea una nuova risposta TwiML
-                    $response = new MessagingResponse();
+                    try {
+                        // Invia il messaggio HTML
+                        $this->twilioClient->messages->create(
+                            $phoneNumber,
+                            [
+                                'from' => config('services.twilio.from'),
+                                'body' => $initialScene->entry_message,
+                                'format' => 'html'
+                            ]
+                        );
+                        Log::info('Messaggio HTML inviato');
 
-                    // Aggiungi il messaggio formattato in HTML
-                    $response->message($initialScene->entry_message, ['format' => 'html']);
-                    
-                    // Aggiungi media se presente
-                    if ($initialScene->media_gif_url) {
-                        $response->message('', ['mediaUrl' => config('app.url') . $initialScene->media_gif_url]);
-                        Log::info('Aggiunto media GIF', ['url' => $initialScene->media_gif_url]);
+                        // Invia la GIF se presente
+                        if ($initialScene->media_gif_url) {
+                            $this->twilioClient->messages->create(
+                                $phoneNumber,
+                                [
+                                    'from' => config('services.twilio.from'),
+                                    'mediaUrl' => [config('app.url') . $initialScene->media_gif_url]
+                                ]
+                            );
+                            Log::info('GIF inviata', ['url' => $initialScene->media_gif_url]);
+                        }
+
+                        // Invia l'audio se presente
+                        if ($initialScene->media_audio_url) {
+                            $this->twilioClient->messages->create(
+                                $phoneNumber,
+                                [
+                                    'from' => config('services.twilio.from'),
+                                    'mediaUrl' => [config('app.url') . $initialScene->media_audio_url]
+                                ]
+                            );
+                            Log::info('Audio inviato', ['url' => $initialScene->media_audio_url]);
+                        }
+
+                        // Invia una risposta vuota per Twilio
+                        return response('', 200)
+                            ->header('Content-Type', 'text/xml');
+
+                    } catch (\Exception $e) {
+                        Log::error('Errore nell\'invio dei messaggi Twilio', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        throw $e;
                     }
-                    if ($initialScene->media_audio_url) {
-                        $response->message('', ['mediaUrl' => config('app.url') . $initialScene->media_audio_url]);
-                        Log::info('Aggiunto media audio', ['url' => $initialScene->media_audio_url]);
-                    }
-
-                    $xml = $response->asXML();
-
-                    Log::info('Risposta iniziale inviata', [
-                        'response' => $xml,
-                        'media_gif_url' => $initialScene->media_gif_url,
-                        'media_audio_url' => $initialScene->media_audio_url,
-                        'message' => $initialScene->entry_message
-                    ]);
-
-                    // Invia la risposta
-                    $response = response($xml, 200)
-                        ->header('Content-Type', 'text/xml');
-
-                    // Aggiungi header per forzare l'invio immediato
-                    $response->headers->set('X-Twilio-Webhook-Response', 'true');
-                    $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
-                    $response->headers->set('Pragma', 'no-cache');
-                    $response->headers->set('Expires', '0');
-
-                    // Aggiungi header per indicare che è una risposta TwiML
-                    $response->headers->set('X-Twilio-Webhook-Response-Type', 'twiml');
-
-                    return $response;
                 }
 
                 // Se non è il messaggio iniziale, passa a handleIncomingMessage
