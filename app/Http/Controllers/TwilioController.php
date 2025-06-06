@@ -132,6 +132,9 @@ class TwilioController extends Controller
                         );
                         Log::info('Messaggio HTML inviato');
 
+                        // Attendi 2 secondi prima di inviare la GIF
+                        sleep(2);
+
                         // Invia la GIF se presente
                         if ($initialScene->media_gif_url) {
                             // Costruisci l'URL pubblico per la GIF
@@ -163,6 +166,9 @@ class TwilioController extends Controller
                                 ]);
                             }
                         }
+
+                        // Attendi 2 secondi prima di inviare l'audio
+                        sleep(2);
 
                         // Invia l'audio se presente
                         if ($initialScene->media_audio_url) {
