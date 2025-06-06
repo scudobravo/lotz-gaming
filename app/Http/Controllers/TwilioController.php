@@ -134,10 +134,14 @@ class TwilioController extends Controller
 
                         // Invia la GIF se presente
                         if ($initialScene->media_gif_url) {
-                            // Ottieni il contenuto del file
-                            $gifPath = storage_path('app/public/' . $initialScene->media_gif_url);
-                            if (file_exists($gifPath)) {
-                                $gifContent = file_get_contents($gifPath);
+                            // Rimuovi il prefisso storage/ dal percorso
+                            $gifPath = str_replace('storage/', '', $initialScene->media_gif_url);
+                            $fullPath = storage_path('app/public/' . $gifPath);
+                            
+                            Log::info('Tentativo di lettura GIF', ['path' => $fullPath]);
+                            
+                            if (file_exists($fullPath)) {
+                                $gifContent = file_get_contents($fullPath);
                                 $gifBase64 = base64_encode($gifContent);
                                 
                                 // Crea un messaggio con il media in base64
@@ -150,16 +154,20 @@ class TwilioController extends Controller
                                 );
                                 Log::info('GIF inviata come base64');
                             } else {
-                                Log::error('File GIF non trovato', ['path' => $gifPath]);
+                                Log::error('File GIF non trovato', ['path' => $fullPath]);
                             }
                         }
 
                         // Invia l'audio se presente
                         if ($initialScene->media_audio_url) {
-                            // Ottieni il contenuto del file
-                            $audioPath = storage_path('app/public/' . $initialScene->media_audio_url);
-                            if (file_exists($audioPath)) {
-                                $audioContent = file_get_contents($audioPath);
+                            // Rimuovi il prefisso storage/ dal percorso
+                            $audioPath = str_replace('storage/', '', $initialScene->media_audio_url);
+                            $fullPath = storage_path('app/public/' . $audioPath);
+                            
+                            Log::info('Tentativo di lettura audio', ['path' => $fullPath]);
+                            
+                            if (file_exists($fullPath)) {
+                                $audioContent = file_get_contents($fullPath);
                                 $audioBase64 = base64_encode($audioContent);
                                 
                                 // Crea un messaggio con il media in base64
@@ -172,7 +180,7 @@ class TwilioController extends Controller
                                 );
                                 Log::info('Audio inviato come base64');
                             } else {
-                                Log::error('File audio non trovato', ['path' => $audioPath]);
+                                Log::error('File audio non trovato', ['path' => $fullPath]);
                             }
                         }
 
