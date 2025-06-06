@@ -108,28 +108,22 @@ class TwilioController extends Controller
                         $response = new MessagingResponse();
 
                         // 1. Invia prima il messaggio testuale
-                        $textMessage = $response->message([
-                            'format' => 'html'
-                        ]);
-                        $textMessage->body(strip_tags($initialScene->entry_message));
+                        $textMessage = $response->message(strip_tags($initialScene->entry_message));
+                        $textMessage->setAttribute('format', 'html');
 
                         // 2. Invia la GIF (se presente) in un messaggio separato
                         if ($initialScene->media_gif_url) {
                             $gifUrl = $this->prepareMediaUrl($initialScene->media_gif_url);
-                            
                             $gifMessage = $response->message('');
                             $gifMessage->media($gifUrl);
-                            
                             Log::info('GIF aggiunta', ['url' => $gifUrl]);
                         }
 
                         // 3. Invia l'audio (se presente) in un messaggio separato
                         if ($initialScene->media_audio_url) {
                             $audioUrl = $this->prepareMediaUrl($initialScene->media_audio_url);
-                            
                             $audioMessage = $response->message('');
                             $audioMessage->media($audioUrl);
-                            
                             Log::info('Audio aggiunto', ['url' => $audioUrl]);
                         }
 
@@ -148,10 +142,12 @@ class TwilioController extends Controller
 
             // Gestione richiesta GET
             $response = new MessagingResponse();
-            $response->message('Invia questo messaggio per iniziare il gioco!');
+            $message = $response->message('Invia questo messaggio per iniziare il gioco!');
+            $message->setAttribute('format', 'html');
 
             return response($response)
-                ->header('Content-Type', 'text/xml');
+                ->header('Content-Type', 'text/xml')
+                ->header('X-Twilio-Webhook-Response', 'true');
 
         } catch (\Exception $e) {
             Log::error('Errore in sendInitialMessage', ['error' => $e->getMessage()]);
