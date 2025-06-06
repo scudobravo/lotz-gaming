@@ -111,23 +111,25 @@ class TwilioController extends Controller
                     if ($initialScene->media_gif_url) {
                         $media = $response->addChild('Media');
                         $media[0] = config('app.url') . $initialScene->media_gif_url;
+                        Log::info('Aggiunto media GIF', ['url' => $initialScene->media_gif_url]);
                     }
                     if ($initialScene->media_audio_url) {
                         $media = $response->addChild('Media');
                         $media[0] = config('app.url') . $initialScene->media_audio_url;
+                        Log::info('Aggiunto media audio', ['url' => $initialScene->media_audio_url]);
                     }
 
                     // Aggiungi il messaggio formattato in HTML
                     $message = $response->addChild('Message');
                     $message->addAttribute('format', 'html');
                     $body = $message->addChild('Body');
-                    $body[0] = $this->formatMessageForTwilio($initialScene->entry_message);
+                    $body[0] = $initialScene->entry_message;
 
                     Log::info('Risposta iniziale inviata', [
                         'response' => $response->asXML(),
                         'media_gif_url' => $initialScene->media_gif_url,
                         'media_audio_url' => $initialScene->media_audio_url,
-                        'message' => $this->formatMessageForTwilio($initialScene->entry_message)
+                        'message' => $initialScene->entry_message
                     ]);
 
                     return response($response->asXML(), 200)
