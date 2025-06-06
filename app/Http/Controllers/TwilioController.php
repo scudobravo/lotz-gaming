@@ -138,6 +138,9 @@ class TwilioController extends Controller
                             $gifPath = str_replace('/storage/', '', $initialScene->media_gif_url);
                             $gifUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $gifPath;
                             
+                            // Codifica l'URL per gestire spazi e caratteri speciali
+                            $gifUrl = str_replace(' ', '%20', $gifUrl);
+                            
                             Log::info('Tentativo di invio GIF', [
                                 'url' => $gifUrl,
                                 'original_path' => $initialScene->media_gif_url,
@@ -166,6 +169,9 @@ class TwilioController extends Controller
                             // Costruisci l'URL pubblico per l'audio
                             $audioPath = str_replace('/storage/', '', $initialScene->media_audio_url);
                             $audioUrl = str_replace('http://', 'https://', config('app.url')) . '/storage/' . $audioPath;
+                            
+                            // Codifica l'URL per gestire spazi e caratteri speciali
+                            $audioUrl = str_replace(' ', '%20', $audioUrl);
                             
                             Log::info('Tentativo di invio audio', [
                                 'url' => $audioUrl,
