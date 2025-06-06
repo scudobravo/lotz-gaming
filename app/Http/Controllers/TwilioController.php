@@ -161,8 +161,20 @@ class TwilioController extends Controller
                         $xml = $response->asXML();
                         Log::info('Risposta TwiML generata', ['response' => $xml]);
 
-                        return response($xml, 200)
-                            ->header('Content-Type', 'text/xml');
+                        // Prepara la risposta con gli header necessari
+                        $response = response($xml, 200)
+                            ->header('Content-Type', 'text/xml')
+                            ->header('X-Twilio-Webhook-Response', 'true')
+                            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                            ->header('Pragma', 'no-cache')
+                            ->header('Expires', '0')
+                            ->header('X-Twilio-Webhook-Response-Type', 'twiml');
+
+                        Log::info('Risposta finale preparata con headers', [
+                            'headers' => $response->headers->all()
+                        ]);
+
+                        return $response;
 
                     } catch (\Exception $e) {
                         Log::error('Errore nella generazione della risposta TwiML', [
