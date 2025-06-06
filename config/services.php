@@ -36,9 +36,9 @@ return [
     ],
 
     'twilio' => [
-        'sid' => env('TWILIO_ACCOUNT_SID'),
-        'token' => env('TWILIO_AUTH_TOKEN'),
-        'whatsapp_number' => env('TWILIO_FROM_NUMBER'),
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'from' => env('TWILIO_FROM'),
     ],
 
 ];

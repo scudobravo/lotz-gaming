@@ -9,9 +9,21 @@ use App\Models\UserProgress;
 use App\Models\Item;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Twilio\Rest\Client;
+use Twilio\TwiML\MessagingResponse;
 
 class TwilioController extends Controller
 {
+    protected $twilioClient;
+
+    public function __construct()
+    {
+        $this->twilioClient = new Client(
+            config('services.twilio.account_sid'),
+            config('services.twilio.auth_token')
+        );
+    }
+
     /**
      * Formatta il messaggio HTML per Twilio
      */
@@ -56,13 +68,22 @@ class TwilioController extends Controller
                 Log::info('Richiesta POST rilevata');
                 
                 // Estrai il numero di telefono dalla richiesta Twilio
-                $phoneNumber = $request->input('From');
+                $phoneNumber = $request->input('From') ?? $request->input('phone_number');
                 $projectId = $request->input('project_id', 1);
 
                 if (!$phoneNumber) {
-                    Log::error('Numero di telefono mancante nella richiesta Twilio');
+                    Log::error('Numero di telefono mancante nella richiesta Twilio', [
+                        'request_data' => $request->all()
+                    ]);
                     return $this->sendErrorResponse('Numero di telefono mancante');
                 }
+
+                // Assicurati che il numero di telefono abbia il prefisso whatsapp:
+                if (!str_starts_with($phoneNumber, 'whatsapp:')) {
+                    $phoneNumber = 'whatsapp:' . $phoneNumber;
+                }
+
+                Log::info('Numero di telefono elaborato', ['phone_number' => $phoneNumber]);
 
                 // Cerca il progresso dell'utente
                 $userProgress = UserProgress::where('phone_number', $phoneNumber)
@@ -104,23 +125,23 @@ class TwilioController extends Controller
                         'last_interaction_at' => now()
                     ]);
 
-                    // Costruisci la risposta XML
-                    $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
-                    
+                    // Crea una nuova risposta TwiML
+                    $response = new MessagingResponse();
+
                     // Aggiungi il messaggio formattato in HTML
-                    $xml .= '<Message format="html"><Body>' . $initialScene->entry_message . '</Body></Message>';
+                    $response->message($initialScene->entry_message, ['format' => 'html']);
                     
                     // Aggiungi media se presente
                     if ($initialScene->media_gif_url) {
-                        $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_gif_url . '</Media></Message>';
+                        $response->message('', ['mediaUrl' => [config('app.url') . $initialScene->media_gif_url]]);
                         Log::info('Aggiunto media GIF', ['url' => $initialScene->media_gif_url]);
                     }
                     if ($initialScene->media_audio_url) {
-                        $xml .= '<Message><Media>' . config('app.url') . $initialScene->media_audio_url . '</Media></Message>';
+                        $response->message('', ['mediaUrl' => [config('app.url') . $initialScene->media_audio_url]]);
                         Log::info('Aggiunto media audio', ['url' => $initialScene->media_audio_url]);
                     }
-                    
-                    $xml .= '</Response>';
+
+                    $xml = $response->asXML();
 
                     Log::info('Risposta iniziale inviata', [
                         'response' => $xml,
@@ -152,9 +173,10 @@ class TwilioController extends Controller
 
             // Se è una richiesta GET, significa che è il messaggio iniziale
             Log::info('Richiesta GET rilevata, invio messaggio iniziale');
-            $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
-            $xml .= '<Message><Body>Invia questo messaggio per iniziare il gioco!</Body></Message>';
-            $xml .= '</Response>';
+            $response = new MessagingResponse();
+            $response->message('Invia questo messaggio per iniziare il gioco!');
+
+            $xml = $response->asXML();
 
             Log::info('Risposta Twilio generata per messaggio di benvenuto', [
                 'response' => $xml
@@ -180,9 +202,10 @@ class TwilioController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            $xml = '<?xml version="1.0" encoding="UTF-8"?><Response>';
-            $xml .= '<Message><Body>Si è verificato un errore. Riprova più tardi.</Body></Message>';
-            $xml .= '</Response>';
+            $response = new MessagingResponse();
+            $response->message('Si è verificato un errore. Riprova più tardi.');
+
+            $xml = $response->asXML();
             
             $response = response($xml, 200)
                 ->header('Content-Type', 'text/xml');
