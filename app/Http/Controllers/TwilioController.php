@@ -134,32 +134,46 @@ class TwilioController extends Controller
 
                         // Invia la GIF se presente
                         if ($initialScene->media_gif_url) {
-                            $gifUrl = config('app.url') . $initialScene->media_gif_url;
-                            Log::info('Tentativo di invio GIF', ['url' => $gifUrl]);
-                            
-                            $this->twilioClient->messages->create(
-                                $phoneNumber,
-                                [
-                                    'from' => config('services.twilio.from'),
-                                    'mediaUrl' => [$gifUrl]
-                                ]
-                            );
-                            Log::info('GIF inviata', ['url' => $gifUrl]);
+                            // Ottieni il contenuto del file
+                            $gifPath = storage_path('app/public/' . $initialScene->media_gif_url);
+                            if (file_exists($gifPath)) {
+                                $gifContent = file_get_contents($gifPath);
+                                $gifBase64 = base64_encode($gifContent);
+                                
+                                // Crea un messaggio con il media in base64
+                                $this->twilioClient->messages->create(
+                                    $phoneNumber,
+                                    [
+                                        'from' => config('services.twilio.from'),
+                                        'mediaUrl' => ['data:image/gif;base64,' . $gifBase64]
+                                    ]
+                                );
+                                Log::info('GIF inviata come base64');
+                            } else {
+                                Log::error('File GIF non trovato', ['path' => $gifPath]);
+                            }
                         }
 
                         // Invia l'audio se presente
                         if ($initialScene->media_audio_url) {
-                            $audioUrl = config('app.url') . $initialScene->media_audio_url;
-                            Log::info('Tentativo di invio audio', ['url' => $audioUrl]);
-                            
-                            $this->twilioClient->messages->create(
-                                $phoneNumber,
-                                [
-                                    'from' => config('services.twilio.from'),
-                                    'mediaUrl' => [$audioUrl]
-                                ]
-                            );
-                            Log::info('Audio inviato', ['url' => $audioUrl]);
+                            // Ottieni il contenuto del file
+                            $audioPath = storage_path('app/public/' . $initialScene->media_audio_url);
+                            if (file_exists($audioPath)) {
+                                $audioContent = file_get_contents($audioPath);
+                                $audioBase64 = base64_encode($audioContent);
+                                
+                                // Crea un messaggio con il media in base64
+                                $this->twilioClient->messages->create(
+                                    $phoneNumber,
+                                    [
+                                        'from' => config('services.twilio.from'),
+                                        'mediaUrl' => ['data:audio/mpeg;base64,' . $audioBase64]
+                                    ]
+                                );
+                                Log::info('Audio inviato come base64');
+                            } else {
+                                Log::error('File audio non trovato', ['path' => $audioPath]);
+                            }
                         }
 
                         // Invia una risposta vuota per Twilio
