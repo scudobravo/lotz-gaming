@@ -66,8 +66,16 @@ class TwilioController extends Controller
 
                 Log::info('User progress trovato in sendInitialMessage', ['user_progress' => $userProgress]);
 
-                // Se non esiste un progresso, creane uno nuovo
-                if (!$userProgress) {
+                // Se il messaggio è "Invia questo messaggio per iniziare il gioco!", resetta il progresso
+                if ($request->input('Body') === 'Invia questo messaggio per iniziare il gioco!') {
+                    Log::info('Messaggio iniziale rilevato, reset del progresso');
+                    
+                    // Se esiste un progresso, eliminalo
+                    if ($userProgress) {
+                        $userProgress->delete();
+                        Log::info('Progresso esistente eliminato');
+                    }
+
                     // Ottieni il progetto e la sua scena iniziale
                     $project = Project::find($projectId);
                     if (!$project) {
@@ -119,11 +127,11 @@ class TwilioController extends Controller
 
                     return response($response->asXML(), 200)
                         ->header('Content-Type', 'text/xml');
-                } else {
-                    // Se esiste già un progresso, passa a handleIncomingMessage
-                    Log::info('Progresso esistente trovato, passaggio a handleIncomingMessage');
-                    return $this->handleIncomingMessage($request);
                 }
+
+                // Se non è il messaggio iniziale, passa a handleIncomingMessage
+                Log::info('Messaggio non iniziale, passaggio a handleIncomingMessage');
+                return $this->handleIncomingMessage($request);
             }
 
             // Se è una richiesta GET, significa che è il messaggio iniziale
