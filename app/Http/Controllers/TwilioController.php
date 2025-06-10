@@ -254,35 +254,37 @@ class TwilioController extends Controller
      */
     private function handleIntroScene($userProgress, $scene, $message, $response)
     {
-        if (trim(strip_tags($message)) === trim(strip_tags($scene->entry_message))) {
-            if ($scene->next_scene_id) {
-                $nextScene = Scene::find($scene->next_scene_id);
-                if ($nextScene) {
-                    $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
-                    
-                    // 1. Messaggio testuale
-                    $textMessage = $response->message(strip_tags($nextScene->entry_message));
-                    $textMessage->setAttribute('format', 'html');
+        if ($message === '1' && $scene->next_scene_id) {
+            // L'utente ha digitato 1, procediamo con la scena successiva
+            $nextScene = Scene::find($scene->next_scene_id);
+            if ($nextScene) {
+                $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
+                
+                // 1. Messaggio testuale
+                $textMessage = $response->message(strip_tags($nextScene->entry_message));
+                $textMessage->setAttribute('format', 'html');
 
-                    // 2. GIF (se presente)
-                    if ($nextScene->media_gif_url) {
-                        $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
-                        $gifMessage = $response->message('');
-                        $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
-                        Log::info('GIF aggiunta', ['url' => $gifUrl]);
-                    }
-
-                    // 3. Audio (se presente)
-                    if ($nextScene->media_audio_url) {
-                        $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
-                        $audioMessage = $response->message('');
-                        $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
-                        Log::info('Audio aggiunto', ['url' => $audioUrl]);
-                    }
+                // 2. GIF (se presente)
+                if ($nextScene->media_gif_url) {
+                    $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
+                    $gifMessage = $response->message('');
+                    $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
+                    Log::info('GIF aggiunta', ['url' => $gifUrl]);
                 }
-            } else {
-                $message = $response->message('<p>Hai completato questa parte del gioco. Presto arriveranno nuove avventure!</p>');
-                $message->setAttribute('format', 'html');
+
+                // 3. Audio (se presente)
+                if ($nextScene->media_audio_url) {
+                    $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
+                    $audioMessage = $response->message('');
+                    $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
+                    Log::info('Audio aggiunto', ['url' => $audioUrl]);
+                }
+
+                // 4. Messaggio per proseguire solo se la prossima scena è di tipo intro
+                if ($nextScene->type === 'intro') {
+                    $continueMessage = $response->message('Digita 1 per proseguire');
+                    $continueMessage->setAttribute('format', 'html');
+                }
             }
         } else {
             // 1. Messaggio testuale
@@ -304,6 +306,10 @@ class TwilioController extends Controller
                 $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                 Log::info('Audio aggiunto', ['url' => $audioUrl]);
             }
+
+            // 4. Messaggio per proseguire
+            $continueMessage = $response->message('Digita 1 per proseguire');
+            $continueMessage->setAttribute('format', 'html');
         }
     }
 
@@ -336,6 +342,12 @@ class TwilioController extends Controller
                 $audioMessage = $response->message('');
                 $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                 Log::info('Audio aggiunto', ['url' => $audioUrl]);
+            }
+
+            // 4. Messaggio per proseguire solo se la prossima scena è di tipo intro
+            if ($nextScene->type === 'intro') {
+                $continueMessage = $response->message('Digita 1 per proseguire');
+                $continueMessage->setAttribute('format', 'html');
             }
         } else {
             // 1. Messaggio testuale con opzioni
@@ -387,7 +399,11 @@ class TwilioController extends Controller
                 $nextScene = Scene::find($scene->next_scene_id);
                 
                 if ($nextScene) {
-                    // 2. GIF (se presente)
+                    // 2. Messaggio della prossima scena
+                    $nextMessage = $response->message(strip_tags($nextScene->entry_message));
+                    $nextMessage->setAttribute('format', 'html');
+
+                    // 3. GIF (se presente)
                     if ($nextScene->media_gif_url) {
                         $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
                         $gifMessage = $response->message('');
@@ -395,12 +411,18 @@ class TwilioController extends Controller
                         Log::info('GIF aggiunta', ['url' => $gifUrl]);
                     }
 
-                    // 3. Audio (se presente)
+                    // 4. Audio (se presente)
                     if ($nextScene->media_audio_url) {
                         $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
                         $audioMessage = $response->message('');
                         $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
                         Log::info('Audio aggiunto', ['url' => $audioUrl]);
+                    }
+
+                    // 5. Messaggio per proseguire solo se la prossima scena è di tipo intro
+                    if ($nextScene->type === 'intro') {
+                        $continueMessage = $response->message('Digita 1 per proseguire');
+                        $continueMessage->setAttribute('format', 'html');
                     }
                 }
             }
@@ -413,6 +435,12 @@ class TwilioController extends Controller
                     : '<p>Risposta errata. <b>Tentativi rimanenti: ' . $userProgress->attempts_remaining . '</b></p>'
             );
             $textMessage->setAttribute('format', 'html');
+
+            // Se ci sono ancora tentativi, mostra nuovamente l'enigma
+            if ($userProgress->attempts_remaining > 0) {
+                $puzzleMessage = $response->message(strip_tags($scene->entry_message));
+                $puzzleMessage->setAttribute('format', 'html');
+            }
         }
     }
 

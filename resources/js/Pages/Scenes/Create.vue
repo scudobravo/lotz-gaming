@@ -40,6 +40,8 @@ const form = useForm({
 
 const gifPreview = ref(null);
 const audioPreview = ref(null);
+const mediaError = ref('');
+const audioError = ref('');
 
 const addChoice = () => {
     form.choices.push({
@@ -56,64 +58,60 @@ const removeChoice = (index) => {
     });
 };
 
-const handleGifUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-        console.log('File selezionato:', {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            lastModified: file.lastModified
-        });
-        
-        // Verifica che il file sia un'immagine
-        if (!file.type.startsWith('image/')) {
-            alert('Il file deve essere un\'immagine');
-            event.target.value = null;
-            return;
-        }
+const validateFile = (file, type) => {
+    const maxSize = 16 * 1024 * 1024; // 16MB
+    const validMediaTypes = {
+        media: ['video/mp4', 'image/jpeg', 'image/png'],
+        audio: ['audio/mpeg', 'audio/wav']
+    };
 
-        // Verifica la dimensione del file (2MB = 2 * 1024 * 1024 bytes)
-        const maxSize = 2 * 1024 * 1024;
-        if (file.size > maxSize) {
-            alert('Il file è troppo grande. La dimensione massima consentita è 2MB');
-            event.target.value = null;
-            return;
-        }
-        
-        form.media_gif = file;
-        gifPreview.value = URL.createObjectURL(file);
+    if (file.size > maxSize) {
+        return `Il file è troppo grande. Dimensione massima: 16MB`;
     }
+
+    if (type === 'media' && !validMediaTypes.media.includes(file.type)) {
+        return `Formato non supportato. Formati consentiti: MP4, JPG, JPEG, PNG`;
+    }
+
+    if (type === 'audio' && !validMediaTypes.audio.includes(file.type)) {
+        return `Formato non supportato. Formati consentiti: MP3, WAV`;
+    }
+
+    return '';
+};
+
+const handleMediaUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const error = validateFile(file, 'media');
+    if (error) {
+        mediaError.value = error;
+        form.media_gif = null;
+        event.target.value = '';
+        return;
+    }
+
+    mediaError.value = '';
+    form.media_gif = file;
+    gifPreview.value = URL.createObjectURL(file);
 };
 
 const handleAudioUpload = (event) => {
     const file = event.target.files[0];
-    if (file) {
-        console.log('File audio selezionato:', {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            lastModified: file.lastModified
-        });
-        
-        // Verifica che il file sia un audio
-        if (!file.type.startsWith('audio/')) {
-            alert('Il file deve essere un audio');
-            event.target.value = null;
-            return;
-        }
+    if (!file) return;
 
-        // Verifica la dimensione del file (10MB = 10 * 1024 * 1024 bytes)
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            alert('Il file è troppo grande. La dimensione massima consentita è 10MB');
-            event.target.value = null;
-            return;
-        }
-        
-        form.media_audio = file;
-        audioPreview.value = URL.createObjectURL(file);
+    const error = validateFile(file, 'audio');
+    if (error) {
+        audioError.value = error;
+        form.media_audio = null;
+        event.target.value = '';
+        return;
     }
+
+    audioError.value = '';
+    form.media_audio = file;
+    audioPreview.value = URL.createObjectURL(file);
 };
 
 const submit = async () => {
@@ -254,37 +252,57 @@ const submit = async () => {
                                 <InputError class="mt-2" :message="form.errors.entry_message" />
                             </div>
 
-                            <div class="sm:col-span-6">
-                                <label for="media_gif" class="block text-sm font-medium text-gray-700">GIF (max 2MB)</label>
-                                <div class="mt-1 flex items-center">
-                                    <input type="file" name="media_gif" id="media_gif" @change="handleGifUpload"
-                                        class="mt-1 block w-full text-sm text-gray-500
-                                            file:mr-4 file:py-2 file:px-4
-                                            file:rounded-md file:border-0
-                                            file:text-sm file:font-semibold
-                                            file:bg-indigo-50 file:text-indigo-700
-                                            hover:file:bg-indigo-100" />
-                                </div>
-                                <p v-if="form.errors.media_gif" class="mt-2 text-sm text-red-600">{{ form.errors.media_gif }}</p>
-                                <div v-if="gifPreview" class="mt-2">
-                                    <img :src="gifPreview" alt="Anteprima GIF" class="w-64 h-64 object-contain rounded" />
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Media (GIF/Video)</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                    <div class="space-y-1 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <div class="flex text-sm text-gray-600">
+                                            <label for="media_gif" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                                <span>Carica un file</span>
+                                                <input id="media_gif" name="media_gif" type="file" class="sr-only" @change="handleMediaUpload" accept=".mp4,.jpg,.jpeg,.png">
+                                            </label>
+                                            <p class="pl-1">o trascina e rilascia</p>
+                                        </div>
+                                        <p class="text-xs text-gray-500">
+                                            MP4, JPG, JPEG o PNG fino a 16MB
+                                        </p>
+                                        <p v-if="form.media_gif" class="text-sm text-gray-500">
+                                            File selezionato: {{ form.media_gif.name }}
+                                        </p>
+                                        <p v-if="mediaError" class="text-sm text-red-500">
+                                            {{ mediaError }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="sm:col-span-6">
-                                <label for="media_audio" class="block text-sm font-medium text-gray-700">Audio (max 10MB)</label>
-                                <div class="mt-1 flex items-center">
-                                    <input type="file" name="media_audio" id="media_audio" @change="handleAudioUpload"
-                                        class="mt-1 block w-full text-sm text-gray-500
-                                            file:mr-4 file:py-2 file:px-4
-                                            file:rounded-md file:border-0
-                                            file:text-sm file:font-semibold
-                                            file:bg-indigo-50 file:text-indigo-700
-                                            hover:file:bg-indigo-100" />
-                                </div>
-                                <p v-if="form.errors.media_audio" class="mt-2 text-sm text-red-600">{{ form.errors.media_audio }}</p>
-                                <div v-if="audioPreview" class="mt-2">
-                                    <audio controls :src="audioPreview" class="w-full"></audio>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Audio</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                    <div class="space-y-1 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <div class="flex text-sm text-gray-600">
+                                            <label for="media_audio" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                                <span>Carica un file</span>
+                                                <input id="media_audio" name="media_audio" type="file" class="sr-only" @change="handleAudioUpload" accept=".mp3,.wav">
+                                            </label>
+                                            <p class="pl-1">o trascina e rilascia</p>
+                                        </div>
+                                        <p class="text-xs text-gray-500">
+                                            MP3 o WAV fino a 16MB
+                                        </p>
+                                        <p v-if="form.media_audio" class="text-sm text-gray-500">
+                                            File selezionato: {{ form.media_audio.name }}
+                                        </p>
+                                        <p v-if="audioError" class="text-sm text-red-500">
+                                            {{ audioError }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
