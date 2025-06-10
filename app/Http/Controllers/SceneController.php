@@ -305,8 +305,11 @@ class SceneController extends Controller
                 // Elimina le scelte esistenti
                 $scene->choices()->delete();
                 
+                // Decodifica le scelte se sono in formato JSON
+                $choices = is_string($request->choices) ? json_decode($request->choices, true) : $request->choices;
+                
                 // Crea le nuove scelte
-                foreach ($request->choices as $choice) {
+                foreach ($choices as $choice) {
                     if (!empty($choice['label']) && !empty($choice['target_scene_id'])) {
                         $scene->choices()->create([
                             'label' => $choice['label'],
@@ -317,7 +320,7 @@ class SceneController extends Controller
                 }
 
                 Log::info('Scelte aggiornate', [
-                    'choices' => $request->choices
+                    'choices' => $choices
                 ]);
             }
 
