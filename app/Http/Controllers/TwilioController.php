@@ -283,12 +283,14 @@ class TwilioController extends Controller
                 // 4. Se la prossima scena è di tipo investigation, mostra le opzioni
                 if ($nextScene->type === 'investigation') {
                     $choices = $nextScene->choices;
-                    $optionsMessage = "\n\n<b>Opzioni disponibili:</b>\n";
-                    foreach ($choices as $index => $choice) {
-                        $optionsMessage .= ($index + 1) . ". " . $choice->label . "\n";
+                    if ($choices->count() > 0) {
+                        $optionsMessage = "\n\nOpzioni disponibili:\n";
+                        foreach ($choices as $index => $choice) {
+                            $optionsMessage .= ($index + 1) . ". " . $choice->label . "\n";
+                        }
+                        $optionsResponse = $response->message($optionsMessage);
+                        $optionsResponse->setAttribute('format', 'html');
                     }
-                    $optionsResponse = $response->message($optionsMessage);
-                    $optionsResponse->setAttribute('format', 'html');
                 }
             }
         } else {
@@ -313,7 +315,7 @@ class TwilioController extends Controller
             }
 
             // 4. Messaggio per proseguire
-            $continueMessage = $response->message('Digita 1 per proseguire');
+            $continueMessage = $response->message(' Digita 1 per proseguire');
             $continueMessage->setAttribute('format', 'html');
         }
     }
@@ -362,16 +364,18 @@ class TwilioController extends Controller
                 }
             } else {
                 // Scelta non valida
-                $errorMessage = $response->message('<p>Scelta non valida. Seleziona un numero tra 1 e ' . count($choices) . '</p>');
+                $errorMessage = $response->message('Scelta non valida. Seleziona un numero tra 1 e ' . count($choices));
                 $errorMessage->setAttribute('format', 'html');
             }
         }
         
         // Mostra sempre le opzioni disponibili
         $messageText = strip_tags($scene->entry_message);
-        $messageText .= "\n\n<b>Opzioni disponibili:</b>\n";
-        foreach ($scene->choices as $index => $choice) {
-            $messageText .= ($index + 1) . ". " . $choice->label . "\n";
+        if ($scene->choices->count() > 0) {
+            $messageText .= "\n\nOpzioni disponibili:\n";
+            foreach ($scene->choices as $index => $choice) {
+                $messageText .= ($index + 1) . ". " . $choice->label . "\n";
+            }
         }
         
         $textMessage = $response->message($messageText);
@@ -419,7 +423,7 @@ class TwilioController extends Controller
 
                     // 5. Messaggio per proseguire solo se la prossima scena è di tipo intro
                     if ($nextScene->type === 'intro') {
-                        $continueMessage = $response->message('Digita 1 per proseguire');
+                        $continueMessage = $response->message(' Digita 1 per proseguire');
                         $continueMessage->setAttribute('format', 'html');
                     }
                 }
