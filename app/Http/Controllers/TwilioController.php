@@ -280,10 +280,15 @@ class TwilioController extends Controller
                     Log::info('Audio aggiunto', ['url' => $audioUrl]);
                 }
 
-                // 4. Messaggio per proseguire solo se la prossima scena è di tipo intro
-                if ($nextScene->type === 'intro') {
-                    $continueMessage = $response->message('Digita 1 per proseguire');
-                    $continueMessage->setAttribute('format', 'html');
+                // 4. Se la prossima scena è di tipo investigation, mostra le opzioni
+                if ($nextScene->type === 'investigation') {
+                    $choices = $nextScene->choices;
+                    $optionsMessage = "\n\n<b>Opzioni disponibili:</b>\n";
+                    foreach ($choices as $index => $choice) {
+                        $optionsMessage .= ($index + 1) . ". " . $choice->label . "\n";
+                    }
+                    $optionsResponse = $response->message($optionsMessage);
+                    $optionsResponse->setAttribute('format', 'html');
                 }
             }
         } else {
@@ -318,66 +323,59 @@ class TwilioController extends Controller
      */
     private function handleInvestigationScene($userProgress, $scene, $message, $response)
     {
-        $choice = $scene->choices()->where('label', $message)->first();
-        
-        if ($choice) {
-            $userProgress->update(['current_scene_id' => $choice->target_scene_id]);
-            $nextScene = Scene::find($choice->target_scene_id);
+        // Verifica se il messaggio è un numero valido
+        if (is_numeric($message)) {
+            $choices = $scene->choices;
+            $index = (int)$message - 1;
             
-            // 1. Messaggio testuale
-            $textMessage = $response->message(strip_tags($nextScene->entry_message));
-            $textMessage->setAttribute('format', 'html');
+            if (isset($choices[$index])) {
+                $choice = $choices[$index];
+                $userProgress->update(['current_scene_id' => $choice->target_scene_id]);
+                $nextScene = Scene::find($choice->target_scene_id);
+                
+                if ($nextScene) {
+                    // 1. Messaggio testuale
+                    $textMessage = $response->message(strip_tags($nextScene->entry_message));
+                    $textMessage->setAttribute('format', 'html');
 
-            // 2. GIF (se presente)
-            if ($nextScene->media_gif_url) {
-                $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
-                $gifMessage = $response->message('');
-                $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
-                Log::info('GIF aggiunta', ['url' => $gifUrl]);
-            }
+                    // 2. GIF (se presente)
+                    if ($nextScene->media_gif_url) {
+                        $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
+                        $gifMessage = $response->message('');
+                        $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
+                        Log::info('GIF aggiunta', ['url' => $gifUrl]);
+                    }
 
-            // 3. Audio (se presente)
-            if ($nextScene->media_audio_url) {
-                $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
-                $audioMessage = $response->message('');
-                $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
-                Log::info('Audio aggiunto', ['url' => $audioUrl]);
-            }
+                    // 3. Audio (se presente)
+                    if ($nextScene->media_audio_url) {
+                        $audioUrl = $this->prepareMediaUrl($nextScene->media_audio_url);
+                        $audioMessage = $response->message('');
+                        $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
+                        Log::info('Audio aggiunto', ['url' => $audioUrl]);
+                    }
 
-            // 4. Messaggio per proseguire solo se la prossima scena è di tipo intro
-            if ($nextScene->type === 'intro') {
-                $continueMessage = $response->message('Digita 1 per proseguire');
-                $continueMessage->setAttribute('format', 'html');
-            }
-        } else {
-            // 1. Messaggio testuale con opzioni
-            $messageText = strip_tags($scene->entry_message);
-            if ($scene->choices->count() > 0) {
-                $messageText .= "\n\n<b>Opzioni disponibili:</b>\n";
-                foreach ($scene->choices as $index => $choice) {
-                    $messageText .= ($index + 1) . ". " . $choice->label . "\n";
+                    // 4. Se la prossima scena è di tipo puzzle, mostra l'enigma
+                    if ($nextScene->type === 'puzzle') {
+                        $puzzleMessage = $response->message(strip_tags($nextScene->puzzle_question));
+                        $puzzleMessage->setAttribute('format', 'html');
+                    }
                 }
-            }
-            
-            $textMessage = $response->message($messageText);
-            $textMessage->setAttribute('format', 'html');
-
-            // 2. GIF (se presente)
-            if ($scene->media_gif_url) {
-                $gifUrl = $this->prepareMediaUrl($scene->media_gif_url);
-                $gifMessage = $response->message('');
-                $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
-                Log::info('GIF aggiunta', ['url' => $gifUrl]);
-            }
-
-            // 3. Audio (se presente)
-            if ($scene->media_audio_url) {
-                $audioUrl = $this->prepareMediaUrl($scene->media_audio_url);
-                $audioMessage = $response->message('');
-                $audioMessage->media($audioUrl, ['contentType' => 'audio/mpeg']);
-                Log::info('Audio aggiunto', ['url' => $audioUrl]);
+            } else {
+                // Scelta non valida
+                $errorMessage = $response->message('<p>Scelta non valida. Seleziona un numero tra 1 e ' . count($choices) . '</p>');
+                $errorMessage->setAttribute('format', 'html');
             }
         }
+        
+        // Mostra sempre le opzioni disponibili
+        $messageText = strip_tags($scene->entry_message);
+        $messageText .= "\n\n<b>Opzioni disponibili:</b>\n";
+        foreach ($scene->choices as $index => $choice) {
+            $messageText .= ($index + 1) . ". " . $choice->label . "\n";
+        }
+        
+        $textMessage = $response->message($messageText);
+        $textMessage->setAttribute('format', 'html');
     }
 
     /**

@@ -11,9 +11,9 @@ class Choice extends Model
 
     protected $fillable = [
         'scene_id',
-        'text',
-        'next_scene_id',
-        'is_correct',
+        'label',
+        'target_scene_id',
+        'order',
         'metadata'
     ];
 

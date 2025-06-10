@@ -216,7 +216,8 @@ class SceneController extends Controller
         try {
             Log::info('Inizio aggiornamento scena', [
                 'scene_id' => $scene->id,
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
+                'choices_data' => $request->input('choices')
             ]);
 
             DB::beginTransaction();
@@ -236,7 +237,7 @@ class SceneController extends Controller
                 'character_id' => 'nullable|exists:characters,id',
                 'project_id' => 'required|exists:projects,id',
                 'next_scene_id' => 'nullable|exists:scenes,id',
-                'choices' => 'nullable|array'
+                'choices' => 'nullable|string'
             ]);
 
             Log::info('Dati validati', [
@@ -248,11 +249,11 @@ class SceneController extends Controller
                 $file = $request->file('media_gif');
                 
                 if (!$file->isValid()) {
-                    throw new \Exception('File media non valido: ' . $file->getErrorMessage());
+                    throw new \Exception('File non valido: ' . $file->getErrorMessage());
                 }
 
-                // Elimina il vecchio media se esiste
-                if ($scene->media_gif && Storage::disk('public')->exists($scene->media_gif)) {
+                // Elimina il vecchio file se esiste
+                if ($scene->media_gif) {
                     Storage::disk('public')->delete($scene->media_gif);
                 }
 
@@ -260,10 +261,11 @@ class SceneController extends Controller
                 $path = $file->storeAs('scenes/media', $fileName, 'public');
                 
                 if (!$path) {
-                    throw new \Exception('Impossibile salvare il file media');
+                    throw new \Exception('Impossibile salvare il file');
                 }
                 
                 $validated['media_gif'] = $path;
+                $validated['media_gif_url'] = '/storage/' . $path;
             }
 
             // Gestione del file audio
@@ -274,8 +276,8 @@ class SceneController extends Controller
                     throw new \Exception('File audio non valido: ' . $file->getErrorMessage());
                 }
 
-                // Elimina il vecchio audio se esiste
-                if ($scene->media_audio && Storage::disk('public')->exists($scene->media_audio)) {
+                // Elimina il vecchio file se esiste
+                if ($scene->media_audio) {
                     Storage::disk('public')->delete($scene->media_audio);
                 }
 
@@ -287,54 +289,70 @@ class SceneController extends Controller
                 }
                 
                 $validated['media_audio'] = $path;
+                $validated['media_audio_url'] = '/storage/' . $path;
             }
 
             // Aggiorna la scena
             $scene->update($validated);
 
-            Log::info('Scena aggiornata', [
-                'scene' => $scene->toArray()
-            ]);
+            // Gestione delle scelte
+            if ($request->has('choices')) {
+                $choices = json_decode($request->input('choices'), true);
+                Log::info('Scelte decodificate', ['choices' => $choices]);
 
-            // Gestione delle scelte per le scene di tipo investigation
-            if ($scene->type === 'investigation' && $request->has('choices')) {
-                Log::info('Gestione scelte investigation', [
-                    'choices' => $request->choices
-                ]);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($choices)) {
+                    // Elimina le scelte esistenti
+                    $scene->choices()->delete();
 
-                // Elimina le scelte esistenti
-                $scene->choices()->delete();
-                
-                // Decodifica le scelte se sono in formato JSON
-                $choices = is_string($request->choices) ? json_decode($request->choices, true) : $request->choices;
-                
-                // Crea le nuove scelte
-                foreach ($choices as $choice) {
-                    if (!empty($choice['label']) && !empty($choice['target_scene_id'])) {
-                        $scene->choices()->create([
-                            'label' => $choice['label'],
-                            'target_scene_id' => $choice['target_scene_id'],
-                            'order' => $choice['order'] ?? 0
-                        ]);
+                    // Se il tipo è investigation, crea le nuove scelte
+                    if ($scene->type === 'investigation' && !empty($choices)) {
+                        foreach ($choices as $choiceData) {
+                            $scene->choices()->create([
+                                'label' => $choiceData['label'],
+                                'target_scene_id' => $choiceData['target_scene_id'],
+                                'order' => $choiceData['order']
+                            ]);
+                        }
                     }
+                } else {
+                    Log::error('Errore decodifica JSON scelte', [
+                        'json_error' => json_last_error_msg(),
+                        'raw_choices' => $request->input('choices')
+                    ]);
                 }
-
-                Log::info('Scelte aggiornate', [
-                    'choices' => $choices
-                ]);
             }
 
             DB::commit();
-            Log::info('Aggiornamento completato con successo');
+
+            Log::info('Scena aggiornata con successo', [
+                'scene_id' => $scene->id,
+                'updated_data' => $validated,
+                'choices' => $request->input('choices')
+            ]);
+
             return response()->json(['success' => true]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            Log::error('Errore di validazione durante l\'aggiornamento', [
+                'errors' => $e->errors()
+            ]);
+            
+            return response()->json([
+                'message' => 'Errore di validazione',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Errore durante l\'aggiornamento della scena', [
+            Log::error('Errore durante l\'aggiornamento', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['error' => $e->getMessage()], 500);
+            
+            return response()->json([
+                'message' => 'Errore durante l\'aggiornamento',
+                'errors' => ['media_gif' => [$e->getMessage()]]
+            ], 422);
         }
     }
 

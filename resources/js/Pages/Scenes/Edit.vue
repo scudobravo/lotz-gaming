@@ -6,12 +6,17 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import serialize from 'form-serialize';
 
 const props = defineProps({
     scene: {
         type: Object,
+        required: true
+    },
+    choices: {
+        type: Array,
         required: true
     },
     availableScenes: {
@@ -26,6 +31,13 @@ const props = defineProps({
         type: Array,
         required: true
     }
+});
+
+onMounted(() => {
+    console.log('Componente montato');
+    console.log('Scene props:', props.scene);
+    console.log('Choices props:', props.choices);
+    console.log('Tipo scena:', props.scene.type);
 });
 
 const form = useForm({
@@ -43,9 +55,16 @@ const form = useForm({
     item_id: props.scene.item_id || '',
     character_id: props.scene.character_id || '',
     project_id: props.scene.project_id,
-    choices: props.scene.choices || [],
+    choices: props.choices ? props.choices.map(choice => ({
+        label: choice.label,
+        target_scene_id: choice.target_scene_id,
+        order: choice.order
+    })) : [],
     next_scene_id: props.scene.next_scene_id || ''
 });
+
+console.log('Form inizializzato con scelte:', form.choices);
+console.log('Tipo scena nel form:', form.type);
 
 // Inizializza le preview con i valori esistenti
 const gifPreview = ref(props.scene.media_gif_url || null);
@@ -58,47 +77,6 @@ console.log('Scene data:', {
     media_audio_url: props.scene.media_audio_url,
     full_scene: props.scene
 });
-
-const addChoice = () => {
-    form.choices.push({
-        label: '',
-        target_scene_id: '',
-        order: form.choices.length
-    });
-};
-
-const removeChoice = (index) => {
-    form.choices.splice(index, 1);
-    // Aggiorna l'ordine delle scelte rimanenti
-    form.choices.forEach((choice, idx) => {
-        choice.order = idx;
-    });
-};
-
-const mediaError = ref('');
-const audioError = ref('');
-
-const validateFile = (file, type) => {
-    const maxSize = 16 * 1024 * 1024; // 16MB
-    const validMediaTypes = {
-        media: ['video/mp4', 'image/jpeg', 'image/png'],
-        audio: ['audio/mpeg', 'audio/wav']
-    };
-
-    if (file.size > maxSize) {
-        return `Il file è troppo grande. Dimensione massima: 16MB`;
-    }
-
-    if (type === 'media' && !validMediaTypes.media.includes(file.type)) {
-        return `Formato non supportato. Formati consentiti: MP4, JPG, JPEG, PNG`;
-    }
-
-    if (type === 'audio' && !validMediaTypes.audio.includes(file.type)) {
-        return `Formato non supportato. Formati consentiti: MP3, WAV`;
-    }
-
-    return '';
-};
 
 const handleMediaUpload = (event) => {
     const file = event.target.files[0];
@@ -132,90 +110,87 @@ const handleAudioUpload = (event) => {
     form.media_audio = file;
 };
 
-const submit = async () => {
-    try {
-        const formData = new FormData();
-        formData.append('_method', 'PUT');
-        formData.append('title', form.title);
-        formData.append('entry_message', form.entry_message);
-        formData.append('type', form.type);
-        formData.append('order', form.order);
-        formData.append('project_id', form.project_id);
-        formData.append('next_scene_id', form.next_scene_id);
+const validateFile = (file, type) => {
+    const maxSize = 16 * 1024 * 1024; // 16MB
+    const validMediaTypes = {
+        media: ['video/mp4', 'image/jpeg', 'image/png'],
+        audio: ['audio/mpeg', 'audio/wav']
+    };
+
+    if (file.size > maxSize) {
+        return `Il file è troppo grande. Dimensione massima: 16MB`;
+    }
+
+    if (type === 'media' && !validMediaTypes.media.includes(file.type)) {
+        return `Formato non supportato. Formati consentiti: MP4, JPG, JPEG, PNG`;
+    }
+
+    if (type === 'audio' && !validMediaTypes.audio.includes(file.type)) {
+        return `Formato non supportato. Formati consentiti: MP3, WAV`;
+    }
+
+    return '';
+};
+
+const addChoice = () => {
+    console.log('Aggiungo nuova scelta');
+    const newChoice = {
+        label: '',
+        target_scene_id: '',
+        order: form.choices.length
+    };
+    form.choices.push(newChoice);
+    console.log('Scelte dopo aggiunta:', form.choices);
+};
+
+const removeChoice = (index) => {
+    console.log('Rimuovo scelta:', index);
+    form.choices.splice(index, 1);
+    // Aggiorna l'ordine delle scelte rimanenti
+    form.choices.forEach((choice, idx) => {
+        choice.order = idx;
+    });
+    console.log('Scelte dopo rimozione:', form.choices);
+};
+
+const mediaError = ref('');
+const audioError = ref('');
+
+const submit = () => {
+    console.log('Inizio submit con scelte:', form.choices);
+    console.log('Tipo scena durante submit:', form.type);
+    
+    // Se il tipo è investigation, assicurati che le scelte siano valide
+    if (form.type === 'investigation') {
+        console.log('Tipo investigation, scelte presenti:', form.choices);
         
-        // Aggiungi le scelte se il tipo è investigation
-        if (form.type === 'investigation') {
-            formData.append('choices', JSON.stringify(form.choices));
-        }
+        // Assicurati che ogni scelta abbia i campi necessari
+        form.choices = form.choices.map((choice, index) => ({
+            label: choice.label || '',
+            target_scene_id: choice.target_scene_id || '',
+            order: index
+        }));
         
-        if (form.media_gif instanceof File) {
-            console.log('Aggiungo GIF al form:', {
-                name: form.media_gif.name,
-                size: form.media_gif.size,
-                type: form.media_gif.type
-            });
-            formData.append('media_gif', form.media_gif);
-        }
-        
-        if (form.media_audio instanceof File) {
-            console.log('Aggiungo audio al form:', {
-                name: form.media_audio.name,
-                size: form.media_audio.size,
-                type: form.media_audio.type
-            });
-            formData.append('media_audio', form.media_audio);
-        }
+        console.log('Scelte preparate per l\'invio:', form.choices);
+    }
 
-        // Debug del FormData
-        for (let [key, value] of formData.entries()) {
-            console.log('FormData entry:', key, value instanceof File ? 
-                `${value.name} (${value.size} bytes)` : value);
-        }
-
-        console.log('Invio richiesta...');
-        const response = await axios.post(
-            route('scenes.update', props.scene.id),
-            formData,
-            {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                onUploadProgress: progressEvent => {
-                    const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    console.log(`Progresso upload: ${percent}%`);
-                }
-            }
-        );
-
-        console.log('Risposta ricevuta:', response.data);
-
-        if (response.data.success) {
+    // Usa il form di Inertia per inviare i dati
+    form.post(route('scenes.update', props.scene.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            console.log('Form inviato con successo');
             router.visit(route('scenes.index'));
-        }
-    } catch (error) {
-        console.error('Errore completo:', {
-            error: error.response?.data || error,
-            request: error.config,
-            response: error.response,
-            status: error.response?.status,
-            statusText: error.response?.statusText,
-            data: error.response?.data
-        });
-        
-        if (error.response?.data?.errors) {
-            const errors = error.response.data.errors;
+        },
+        onError: (errors) => {
+            console.error('Errore durante l\'invio del form:', errors);
             if (errors.media_gif) {
                 alert(`Errore GIF: ${errors.media_gif.join(', ')}`);
             }
             if (errors.media_audio) {
                 alert(`Errore audio: ${errors.media_audio.join(', ')}`);
             }
-        } else {
-            alert('Errore sconosciuto durante il caricamento');
         }
-    }
+    });
 };
 </script>
 
@@ -235,7 +210,7 @@ const submit = async () => {
                             <h3 class="text-lg leading-6 font-medium text-gray-900">Modifica Scena</h3>
                             <p class="mt-1 text-sm text-gray-500">Modifica i dettagli della scena e le sue scelte.</p>
                         </div>
-                        <form @submit.prevent="submit" class="space-y-6">
+                        <form @submit.prevent="submit" class="space-y-6" enctype="multipart/form-data">
                             <div>
                                 <InputLabel for="title" value="Titolo" />
                                 <TextInput
@@ -435,8 +410,9 @@ const submit = async () => {
                                             :id="'choice-label-' + index"
                                             type="text"
                                             class="mt-1 block w-full"
-                                            v-model="choice.label"
+                                            v-model="form.choices[index].label"
                                             required
+                                            @input="() => console.log('Label aggiornata:', form.choices[index].label)"
                                         />
                                     </div>
 
@@ -444,9 +420,10 @@ const submit = async () => {
                                         <InputLabel :for="'choice-target-' + index" value="Scena di Destinazione" />
                                         <select
                                             :id="'choice-target-' + index"
-                                            v-model="choice.target_scene_id"
+                                            v-model="form.choices[index].target_scene_id"
                                             class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                                             required
+                                            @change="() => console.log('Target aggiornato:', form.choices[index].target_scene_id)"
                                         >
                                             <option value="">Seleziona una scena</option>
                                             <option 

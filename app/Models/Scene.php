@@ -27,7 +27,8 @@ class Scene extends Model
         'max_attempts',
         'item_id',
         'character_id',
-        'next_scene_id'
+        'next_scene_id',
+        'choices'
     ];
 
     protected $casts = [
