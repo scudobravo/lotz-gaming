@@ -402,8 +402,17 @@ class TwilioController extends Controller
                         Log::info('Mostro enigma', [
                             'question' => $nextScene->puzzle_question
                         ]);
-                        $puzzleMessage = $response->message(strip_tags($nextScene->puzzle_question));
-                        $puzzleMessage->setAttribute('format', 'html');
+                        
+                        if ($nextScene->puzzle_question) {
+                            $puzzleMessage = $response->message(strip_tags($nextScene->puzzle_question));
+                            $puzzleMessage->setAttribute('format', 'html');
+                        } else {
+                            Log::warning('Mancano i dati dell\'enigma', [
+                                'scene_id' => $nextScene->id
+                            ]);
+                            $errorMessage = $response->message('Ops! Sembra che ci sia un problema con l\'enigma. Riprova più tardi.');
+                            $errorMessage->setAttribute('format', 'html');
+                        }
                     }
                 }
             } else {
