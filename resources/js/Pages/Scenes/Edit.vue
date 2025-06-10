@@ -8,7 +8,6 @@ import TextInput from '@/Components/TextInput.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import serialize from 'form-serialize';
 
 const props = defineProps({
     scene: {
