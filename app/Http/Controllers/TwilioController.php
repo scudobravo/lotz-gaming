@@ -258,6 +258,11 @@ class TwilioController extends Controller
             // L'utente ha digitato 1, procediamo con la scena successiva
             $nextScene = Scene::find($scene->next_scene_id);
             if ($nextScene) {
+                Log::info('Passaggio alla scena successiva', [
+                    'next_scene_id' => $nextScene->id,
+                    'next_scene_type' => $nextScene->type
+                ]);
+
                 $userProgress->update(['current_scene_id' => $scene->next_scene_id]);
                 
                 // 1. Messaggio testuale
@@ -282,14 +287,23 @@ class TwilioController extends Controller
 
                 // 4. Se la prossima scena è di tipo investigation, mostra le opzioni
                 if ($nextScene->type === 'investigation') {
-                    $choices = $nextScene->choices;
+                    Log::info('Scena di tipo investigation, recupero le scelte');
+                    
+                    // Carica esplicitamente le scelte
+                    $choices = $nextScene->choices()->get();
+                    Log::info('Scelte trovate', ['count' => $choices->count(), 'choices' => $choices->toArray()]);
+
                     if ($choices->count() > 0) {
                         $optionsMessage = "\n\nOpzioni disponibili:\n";
                         foreach ($choices as $index => $choice) {
                             $optionsMessage .= ($index + 1) . ". " . $choice->label . "\n";
                         }
+                        Log::info('Messaggio opzioni preparato', ['message' => $optionsMessage]);
+                        
                         $optionsResponse = $response->message($optionsMessage);
                         $optionsResponse->setAttribute('format', 'html');
+                    } else {
+                        Log::warning('Nessuna scelta trovata per la scena', ['scene_id' => $nextScene->id]);
                     }
                 }
             }
