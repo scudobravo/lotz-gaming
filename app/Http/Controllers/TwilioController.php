@@ -65,7 +65,7 @@ class TwilioController extends Controller
         $extension = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
         
         $validMediaTypes = [
-            'images' => ['jpg', 'jpeg', 'png', 'mp4'], // MP4 invece di GIF
+            'images' => ['jpg', 'jpeg', 'png', 'gif', 'mp4'], // Aggiunto gif
             'audio' => ['mp3', 'ogg', 'amr', 'wav']
         ];
         
@@ -339,27 +339,54 @@ class TwilioController extends Controller
      */
     private function handleInvestigationScene($userProgress, $scene, $message, $response)
     {
+        Log::info('Gestione scena investigation', [
+            'scene_id' => $scene->id,
+            'message' => $message
+        ]);
+
         // Verifica se il messaggio è un numero valido
         if (is_numeric($message)) {
             $choices = $scene->choices;
             $index = (int)$message - 1;
             
+            Log::info('Scelta selezionata', [
+                'index' => $index,
+                'total_choices' => count($choices)
+            ]);
+            
             if (isset($choices[$index])) {
                 $choice = $choices[$index];
+                Log::info('Scelta trovata', [
+                    'choice_id' => $choice->id,
+                    'target_scene_id' => $choice->target_scene_id
+                ]);
+
                 $userProgress->update(['current_scene_id' => $choice->target_scene_id]);
                 $nextScene = Scene::find($choice->target_scene_id);
                 
                 if ($nextScene) {
+                    Log::info('Prossima scena trovata', [
+                        'next_scene_id' => $nextScene->id,
+                        'next_scene_type' => $nextScene->type
+                    ]);
+
                     // 1. Messaggio testuale
                     $textMessage = $response->message(strip_tags($nextScene->entry_message));
                     $textMessage->setAttribute('format', 'html');
 
                     // 2. GIF (se presente)
                     if ($nextScene->media_gif_url) {
-                        $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
-                        $gifMessage = $response->message('');
-                        $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
-                        Log::info('GIF aggiunta', ['url' => $gifUrl]);
+                        try {
+                            $gifUrl = $this->prepareMediaUrl($nextScene->media_gif_url);
+                            $gifMessage = $response->message('');
+                            $gifMessage->media($gifUrl, ['contentType' => 'video/mp4']);
+                            Log::info('GIF aggiunta', ['url' => $gifUrl]);
+                        } catch (\Exception $e) {
+                            Log::error('Errore nel caricamento GIF', [
+                                'error' => $e->getMessage(),
+                                'url' => $nextScene->media_gif_url
+                            ]);
+                        }
                     }
 
                     // 3. Audio (se presente)
@@ -372,12 +399,19 @@ class TwilioController extends Controller
 
                     // 4. Se la prossima scena è di tipo puzzle, mostra l'enigma
                     if ($nextScene->type === 'puzzle') {
+                        Log::info('Mostro enigma', [
+                            'question' => $nextScene->puzzle_question
+                        ]);
                         $puzzleMessage = $response->message(strip_tags($nextScene->puzzle_question));
                         $puzzleMessage->setAttribute('format', 'html');
                     }
                 }
             } else {
                 // Scelta non valida
+                Log::warning('Scelta non valida', [
+                    'index' => $index,
+                    'total_choices' => count($choices)
+                ]);
                 $errorMessage = $response->message('Scelta non valida. Seleziona un numero tra 1 e ' . count($choices));
                 $errorMessage->setAttribute('format', 'html');
             }
