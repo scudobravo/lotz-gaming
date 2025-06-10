@@ -236,7 +236,7 @@ class SceneController extends Controller
                 'character_id' => 'nullable|exists:characters,id',
                 'project_id' => 'required|exists:projects,id',
                 'next_scene_id' => 'nullable|exists:scenes,id',
-                'choices' => 'nullable|string'
+                'choices' => 'nullable|array'
             ]);
 
             Log::info('Dati validati', [
@@ -298,27 +298,26 @@ class SceneController extends Controller
 
             // Gestione delle scelte per le scene di tipo investigation
             if ($scene->type === 'investigation' && $request->has('choices')) {
-                // Decodifica le scelte dal JSON
-                $choices = json_decode($request->choices, true);
-                
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    throw new \Exception('Errore nel parsing delle scelte: ' . json_last_error_msg());
-                }
+                Log::info('Gestione scelte investigation', [
+                    'choices' => $request->choices
+                ]);
 
                 // Elimina le scelte esistenti
                 $scene->choices()->delete();
                 
                 // Crea le nuove scelte
-                foreach ($choices as $choice) {
-                    $scene->choices()->create([
-                        'label' => $choice['label'],
-                        'target_scene_id' => $choice['target_scene_id'],
-                        'order' => $choice['order']
-                    ]);
+                foreach ($request->choices as $choice) {
+                    if (!empty($choice['label']) && !empty($choice['target_scene_id'])) {
+                        $scene->choices()->create([
+                            'label' => $choice['label'],
+                            'target_scene_id' => $choice['target_scene_id'],
+                            'order' => $choice['order'] ?? 0
+                        ]);
+                    }
                 }
 
                 Log::info('Scelte aggiornate', [
-                    'choices' => $choices
+                    'choices' => $request->choices
                 ]);
             }
 
