@@ -64,8 +64,15 @@ class TwilioController extends Controller
         // Verifica estensione file
         $extension = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
         
+        // Se il nome del file contiene .mp4 ma l'estensione è .gif, forziamo l'estensione .mp4
+        if (strpos($cleanPath, '.mp4') !== false && $extension === 'gif') {
+            $cleanPath = str_replace('.gif', '.mp4', $cleanPath);
+            $url = str_replace('.gif', '.mp4', $url);
+            $extension = 'mp4';
+        }
+        
         $validMediaTypes = [
-            'images' => ['jpg', 'jpeg', 'png', 'gif', 'mp4'], // Aggiunto gif
+            'images' => ['jpg', 'jpeg', 'png', 'gif', 'mp4'],
             'audio' => ['mp3', 'ogg', 'amr', 'wav']
         ];
         
@@ -414,6 +421,11 @@ class TwilioController extends Controller
                             $errorMessage->setAttribute('format', 'html');
                         }
                     }
+                    
+                    // Non mostrare le opzioni se siamo passati a una nuova scena
+                    return response($response)
+                        ->header('Content-Type', 'text/xml')
+                        ->header('X-Twilio-Webhook-Response', 'true');
                 }
             } else {
                 // Scelta non valida
@@ -426,7 +438,7 @@ class TwilioController extends Controller
             }
         }
         
-        // Mostra sempre le opzioni disponibili
+        // Mostra le opzioni disponibili solo se non siamo passati a una nuova scena
         $messageText = strip_tags($scene->entry_message);
         if ($scene->choices->count() > 0) {
             $messageText .= "\n\nOpzioni disponibili:\n";
@@ -437,6 +449,10 @@ class TwilioController extends Controller
         
         $textMessage = $response->message($messageText);
         $textMessage->setAttribute('format', 'html');
+        
+        return response($response)
+            ->header('Content-Type', 'text/xml')
+            ->header('X-Twilio-Webhook-Response', 'true');
     }
 
     /**
